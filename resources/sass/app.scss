@@ -1,0 +1,324 @@
+// The following two lines import the default Sencha Touch theme. If you are building
+// a new theme, remove them and the add your own CSS on top of the base CSS (which
+// is already included in your app.json file).
+@import 'sencha-touch/default';
+@import 'sencha-touch/default/all';
+
+// Handle including CSS and mixin for accordion lists
+@import 'stylesheets/accordionlist';
+@include accordionlist;
+
+// Include fontawesome font so that we can utilize icons in iconCls
+@include icon-font('FontAwesome', inline-font-files(
+    'fontawesome/fontawesome-webfont.woff', woff,
+    'fontawesome/fontawesome-webfont.ttf', truetype,
+    'fontawesome/fontawesome-webfont.svg', svg,
+    'fontawesome/fontawesome-webfont.eot', eot
+));
+
+// Define icons from Pictos font that we want to use in iconCls
+@include icon('pancake','l');
+@include icon('back','[');
+@include icon('tools','x');
+@include icon('history','n');
+@include icon('piggybank','%');
+@include icon('label','z');
+
+// Reduce default font size
+.fw-panel {
+    font-size: 0.75em;
+}
+.fw-sidemenu {
+    font-size: 1.1em;
+    padding: 7px 5px 7px 5px;;
+}
+// Adds border under fieldset buttons
+.x-field-buttons {
+  border-bottom: 1px solid #ddd !important;
+}
+
+// Remove top margin on first fieldset item
+.first-fieldset .x-form-fieldset-title {
+    margin-top: 0px !important;
+}
+
+// Adjust searchbox margin so input does not ride over top of icon
+.x-field-search .x-field-input .x-form-field {
+    margin-left: 1.3em !important;
+}
+
+// CSS to apply single options to templates
+.hidden {
+    visibility:hidden;
+}
+.float-left {
+    float: left;
+}
+.float-right {
+    float: right;
+}
+.bold {
+    font-weight: bold;
+}
+.red {
+    color: red;
+}
+.nowrap {
+    white-space: nowrap;
+}
+.overflow-hidden {
+    overflow: hidden;
+}
+.ellipsis {
+    text-overflow: ellipsis;
+}
+.inline-block {
+    display: inline-block;
+}
+.clear-both {
+    clear:both;
+}
+
+// Define some icons for standard currencies
+.icon-btc {
+    background-image: url(../images/icons/btc.png);
+}
+.icon-xcp {
+    background-image: url(../images/icons/xcp.png);
+}
+
+.icon-20 {
+    width: 20px;
+    height: 20px;
+    background-size: 100%;
+}
+.icon-48 {
+    width: 48px;
+    height: 48px;
+    background-size: 100%;
+}
+
+/* CSS for Address list */
+.fw-addresslist-address {
+    padding: 10px;
+    line-height: 1.4em;
+}
+.fw-addresslist-address.current-address {
+    border-left: 5px solid red;
+}
+.fw-addresslist-balance {
+    vertical-align: middle;
+    padding-left: 5px;
+    width: 130px;
+}
+
+/* CSS for Balances list */
+.fw-balanceslist-item,
+.fw-pickerlist-item,
+.fw-transactionslist-item {
+    padding: 5px;
+}
+.fw-balanceslist-icon,
+.fw-transactionslist-icon {
+    display: table-cell;
+    vertical-align: top;
+    width: 48px;
+    height: 48px;
+}
+.fw-pickerlist-icon {
+    display: table-cell;
+    vertical-align: top;
+    width: 35px;
+    height: 35px;
+}
+.fw-balanceslist-info,
+.fw-pickerlist-info,
+.fw-transactionslist-info {
+    display: table-cell;
+    vertical-align: middle;
+    padding-left: 10px;
+}
+.fw-balanceslist-currency,
+.fw-pickerlist-currency {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 2px;
+}
+.fw-balanceslist-amount {
+    font-style: italic;
+    font-size: 1.1em;
+}
+
+/* CSS for History/Transactions list */
+.fw-transactionslist-item {
+    padding: 5px;
+    border-left: 5px solid #888;
+}
+.fw-transactionslist-currency,
+.fw-transactionslist-amount {
+    font-weight: bold;
+}
+.fw-transactionslist-timestamp {
+    font-style: italic;
+    font-size: 0.8em;
+}
+.fw-transactionslist-sent {
+    border-left: 5px solid red;
+}
+.fw-transactionslist-received {
+    border-left: 5px solid green;
+}
+.fw-transactionslist-sent .fw-transactionslist-amount {
+    color: red;
+}
+.fw-transactionslist-received .fw-transactionslist-amount {
+    color: green;
+}
+
+.fw-tools-button {
+    padding: 0px 0px 0px 0px;
+
+    .fa {
+        margin-top: 10px;
+        margin-bottom: 5px;
+    }
+}
+
+.fw-panel-separator {
+    border-left: 1px solid #1468a2;
+}
+
+// Remove padding around items in certain lists
+.fw-addresslist .x-list-item .x-innerhtml,
+.fw-balanceslist .x-list-item .x-innerhtml,
+.fw-transactionslist .x-list-item .x-innerhtml,
+.fw-currency-picker  .x-list-item .x-innerhtml,
+.fw-mainmenu .x-list-item .x-innerhtml  {
+
+    padding: 0px !important;
+}
+
+// Force QR codes to be on white background with border so qrcode readers can easily read 
+.qrcode {
+    background: #fff;
+    padding: 10px;
+}
+// Force no padding above or below messagebox text
+.x-msgbox-text {
+    padding-top: 0px;
+    padding-bottom: 0px;
+}
+
+// Force font size on addresses displayed under QR codes
+.address-qrcode-text {
+    font-size: 0.7em;
+}
+
+// Force passcode to be center-aligned
+.passcode input.x-input-password {
+    text-align: center;
+    padding: 0px;
+}
+
+.passcode-indicator {
+    text-align: center;
+    font-size: 2em;
+    color: #000;
+}
+
+/* CSS to force accordion headers to be blue */
+.x-list .x-list-item.x-accordion-list-header.x-list-item-tpl {
+    background-image: none;
+    background-color: #006bb6;
+    background-image: -webkit-linear-gradient(top, #0398ff,#007ad0 3%,#005c9d);
+    background-image: -moz-linear-gradient(top, #0398ff,#007ad0 3%,#005c9d);
+    background-image: -o-linear-gradient(top, #0398ff,#007ad0 3%,#005c9d);
+    background-image: -ms-linear-gradient(top, #0398ff,#007ad0 3%,#005c9d);
+    color: #fff;
+}
+
+.fw-sidemenu .fa {
+    width: 20px;
+    font-size: 1.3em;
+}
+
+.fw-placeholder-instructions,
+.fw-currencyinfo-instructions,
+.fw-transactioninfo-instructions {
+    font-size: 1.3em;
+}
+
+// Force selected item text color to white
+.x-item-selected .fw-transactionslist-info .fw-transactionslist-amount {
+    color: #fff !important;
+}
+
+// Force label items to not show ... so we can get field labels really tiny
+.no-label-ellipsis .x-form-label-nowrap .x-form-label {
+    text-overflow: clip;
+}
+
+// Force no border on last field item in fieldsets in special cases
+.x-form-fieldset .x-last-field {
+
+    .x-field,
+    .x-field-buttons {
+        border-bottom: 0px !important;
+    }
+}
+
+// Tweak pickers so they work well with images
+.fw-currency-picker .x-picker-slot .x-dataview-item {
+    line-height: 1.0em;
+}
+
+
+.fw-slider-description {
+  border-bottom: 1px solid #ddd !important;
+}
+
+.fw-slider-description .fee {
+    font-weight: bold;
+}
+
+.fee.low {
+    color: green;
+}
+
+.fee.medium {
+    color: orange;
+}
+
+.fee.high {
+    color: red;
+}
+
+.no-rounded-edges.x-panel.x-floating .x-panel-inner {
+    -webkit-border-radius: 0em; 
+    -moz-border-radius: 0em;
+    -ms-border-radius: 0em;
+    -o-border-radius: 0em;
+    border-radius: 0em;
+}
+
+.wallet-passphrase {
+    font-weight: bold;
+    text-align: justify;
+    font-size: 1.3em;
+    color: red;
+}
+
+.x-qrcode-text .x-panel-inner {
+    font-size: 0.6em;
+    text-align: center;
+    padding-bottom: 5px;
+
+}
+
+.margin-bottom-4 {
+    margin-bottom: 4px;
+}
+
+.fw-panel .x-toolbar.x-docked-bottom {
+    font-size: 1.33em;
+}

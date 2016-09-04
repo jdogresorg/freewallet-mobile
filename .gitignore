@@ -1,0 +1,5 @@
+.DS_Store
+/.sencha
+/resources/sass/.sass-cache
+/ssl
+/touch

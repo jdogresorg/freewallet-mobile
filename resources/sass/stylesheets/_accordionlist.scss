@@ -1,0 +1,39 @@
+@mixin accordionlist {
+
+    .x-accordion-list {
+
+        .x-list-item .x-innerhtml {
+            display: -webkit-box;
+        }
+
+        .down {
+            position: relative;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+            border-top-color: #fff;
+            top: 4px;
+            margin-right: 0.4em;
+        }
+
+        .right {
+            position: relative;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+            border-left-color: #fff;
+            top: 2px;
+            margin-right: 0.4em;
+        }
+
+        .x-list-item.x-item-selected .down {
+            border-top-color: #fff;
+        }
+
+        .x-list-item.x-item-selected .right {
+            border-left-color: #fff;
+
+        }
+    }
+
+}
