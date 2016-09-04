@@ -3,3 +3,10 @@
 /resources/sass/.sass-cache
 /ssl
 /touch
+/phonegap
+/build
+/bootstrap.js
+/bootstrap.json
+/build.xml
+/local.properties
+/workspace.json
