@@ -1,18 +1,18 @@
 FreeWallet
 =====
+FreeWallet is an open source mobile wallet which supports Bitcoin and Counterparty
 
-
-Directory Structure
+Features
 =====
-    app/               = MVC source code (Sencha Touch)
-    phonegap/          = Phonegap config files
-    resources/loading/ = loading screens (native)
-    resources/startup/ = loading screens (browser)
+- **Secure** - Wallet Passphrase & private keys never leave device
+- **Send** - Send Bitcoin, XCP, or any other counterparty token/asset
+- **Receive** - Receive payments via scanning QRCode
+- **Issue** - Create a Counterparty token/asset
+- **Sign** - Sign any message
+- **Broadcast** - Broadcast any message
+- **Passcode/PIN** - Protect wallet with additional security
+- **TouchID** - Fingerprint support for iOS
 
-
-Setup
+Comments or Questions?
 =====
-
-
-Notes
-=====
+Submit an issue here or send email to info@freewallet.io
