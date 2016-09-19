@@ -144,10 +144,22 @@
     font-size: 1.1em;
     margin-bottom: 2px;
 }
+.fw-balanceslist-info {
+    width: 100%;
+}
+
 .fw-balanceslist-amount {
+    float: left;
     font-style: italic;
     font-size: 1.1em;
 }
+.fw-balanceslist-price {
+    float: right;
+    padding-left: 10px;
+    font-style: italic;
+    font-size: 1.1em;
+}
+
 
 /* CSS for History/Transactions list */
 .fw-transactionslist-item {
@@ -322,3 +334,6 @@
 .fw-panel .x-toolbar.x-docked-bottom {
     font-size: 1.33em;
 }
+
+
+

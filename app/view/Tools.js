@@ -15,10 +15,8 @@ Ext.define('FW.view.Tools', {
         'FW.view.Dividend',
         'FW.view.Exchange',
         'FW.view.Issuance',
-        'FW.view.Notarize',
         'FW.view.OTCMarket',
         'FW.view.Send',
-        'FW.view.Shapeshift',
         'FW.view.Sign'
     ],
 
@@ -67,9 +65,7 @@ Ext.define('FW.view.Tools', {
     showIssueTool:      function(cfg){ this.showView('issuanceView','FW.view.Issuance',cfg);  },
     showBroadcastTool:  function(cfg){ this.showView('broadcastView','FW.view.Broadcast',cfg);  },
     showExchangeTool:   function(cfg){ this.showView('exchangeView','FW.view.Exchange',cfg);  },
-    showShapeshiftTool: function(cfg){ this.showView('shapeshiftView','FW.view.Shapeshift',cfg);  },
     showSignTool:       function(cfg){ this.showView('signView','FW.view.Sign',cfg);  },
-    showNotarizeTool:   function(cfg){ this.showView('notarizeView','FW.view.Notarize',cfg);  },
     showOTCMarketTool:  function(cfg){ this.showView('otcMarketView','FW.view.OTCMarket',cfg);  },
     showReceiveTool:    function(cfg){ this.showView('receiveView','FW.view.Receive',cfg);  },
     showDividendTool:   function(cfg){ this.showView('dividendView','FW.view.Dividend',cfg);  },

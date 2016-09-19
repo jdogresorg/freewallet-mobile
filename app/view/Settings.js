@@ -359,15 +359,25 @@ Ext.define('FW.view.Settings', {
                     name: 'resolution',
                     label: 'Resolution',
                     value: screen.width + ' x ' + screen.height
-                }]            // },{
-            //     xtype: 'button',
-            //     iconCls: 'fa fa-trash',
-            //     text: 'Remove All Wallet Data',
-            //     ui: 'decline',
-            //     margin: '5 10 10 10',
-            //     handler: function(){
-            //         FW.app.getController('Main').promptFullReset();
-            //     }
+                }]
+            },{
+                xtype: 'button',
+                iconCls: 'fa fa-trash',
+                text: 'Clear Cache',
+                ui: 'action',
+                margin: '5 10 5 10',
+                handler: function(){
+                    FW.app.getController('Main').clearAppCache(true);
+                }
+            },{
+                xtype: 'button',
+                text: 'Logout / Clear Data',
+                iconCls: 'fa fa-sign-out',
+                ui: 'decline',
+                margin: '5 10 10 10',
+                handler: function(){
+                    FW.app.getController('Main').promptLogout();
+                }
             }]
         }]
     },

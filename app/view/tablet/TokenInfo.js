@@ -94,6 +94,12 @@
                     label: 'Total Supply',
                     itemId: 'supply'
                 },{
+                    label: 'USD Price',
+                    itemId: 'price'
+                },{
+                    label: 'BTC Price',
+                    itemId: 'btc'
+                },{
                     label: 'Divisible',
                     itemId: 'divisible'
                 },{

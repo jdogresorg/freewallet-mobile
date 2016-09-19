@@ -110,6 +110,12 @@ Ext.define('FW.view.Send', {
                                 me.updateImage(value);
                                 me.updateBalance(value);
                                 me.amount.setStepValue(step);
+                                me.price.reset();
+                                if(typeof FW.TRACKED_PRICES[value] != 'undefined'){
+                                    me.price.enable();
+                                } else {
+                                    me.price.disable();
+                                }
                             }
                         }
                     }]
@@ -136,13 +142,61 @@ Ext.define('FW.view.Send', {
                     value: '0.00000000',
                     readOnly: true
                 },{
+                    xtype: 'textfield',
+                    label: 'USD',
+                    name: 'price',
+                    value: '$0.00',
+                    component: {
+                        // Change type to tel since it shows numbers keyboard, and allows for additional chars like ,
+                        type: 'tel',
+                        disabled: false
+                    },
+                    listeners: {
+                        // Handle detecting price changes and updating the amount
+                        change: function(cmp, newVal, oldVal){
+                            if(newVal!=oldVal){
+                                var me  = Ext.getCmp('sendView'),
+                                    cur = me.currency.getValue();
+                                if(newVal=='')
+                                    newVal = '0';
+                                // Make sure price starts with $
+                                if(newVal.substr(0,1)!='$' || !/\./.test(newVal))
+                                    cmp.setValue('$' + numeral(newVal).format('0,0.00'));
+                                // Handle updating amount
+                                if(!me.price.isDisabled() && typeof FW.TRACKED_PRICES[cur] != 'undefined'){
+                                    var amount = (parseFloat(newVal.replace('$','').replace(',','')) / FW.TRACKED_PRICES[cur].USD) * 1,
+                                        fmt    = (me.amount.divisible) ? '0,0.00000000' : '0,0';
+                                    me.amount.suspendEvents();
+                                    me.amount.setValue(numeral(amount).format(fmt));
+                                    me.amount.resumeEvents(true);
+                                }
+                            }
+                        }
+                    }
+                },{
                     xtype: 'fw-spinnerfield',
                     label: 'Amount',
                     name: 'amount',
                     value: 1,
                     minValue: 0,
                     maxValue: 100000000.00000000,
-                    stepValue: 0.01000000
+                    stepValue: 0.01000000,
+                    listeners: {
+                        // Handle detecting amount changes and updating the price
+                        change: function(cmp, newVal, oldVal){
+                            if(newVal!=oldVal){
+                                var me  = Ext.getCmp('sendView'),
+                                    cur = me.currency.getValue();
+                                // Handle updating price
+                                if(!me.price.isDisabled() && typeof FW.TRACKED_PRICES[cur] != 'undefined'){
+                                    var price = parseFloat(FW.TRACKED_PRICES[cur].USD / 1) * parseFloat(newVal.replace('$','').replace(',',''));
+                                    me.price.suspendEvents();
+                                    me.price.setValue('$' + numeral(price).format('0,0.00'));
+                                    me.price.resumeEvents(true);
+                                }
+                            }
+                        }
+                    }
                 }]
             },{
                 xtype: 'fw-transactionpriority',
@@ -173,6 +227,7 @@ Ext.define('FW.view.Send', {
         me.currency    = me.down('[name=currency]');
         me.source      = me.down('[name=source]');
         me.destination = me.down('[name=destination]');
+        me.price       = me.down('[name=price]');
         me.amount      = me.down('[name=amount]');
         me.available   = me.down('[name=available]');
         me.priority    = me.down('fw-transactionpriority');
@@ -240,33 +295,39 @@ Ext.define('FW.view.Send', {
         } else {
             me.amount.setDivisible(false);
         }
-        // Set max and available amounts
-        me.amount.setMaxValue(numeral(balance).format(format));
-        me.available.setValue(numeral(balance).format(format));
+        me.balance = balance;
+        // Set max and available amount
+        var amt = numeral(balance).format(format);
+        me.amount.setMaxValue(amt);
+        if(typeof FW.TRACKED_PRICES[currency] != 'undefined')
+            amt += ' ($' + numeral(FW.TRACKED_PRICES[currency]['USD'] * balance).format('0,0.00') + ')';
+        me.available.setValue(amt);
+
     },
 
 
     // Handle validating the send data and sending the send
     validate: function(){
-        var me   = this,
-            vals = me.getValues(),
-            dest = vals.destination,
-            msg  = false;
-        // Get BTC balance
-        var balance = me.main.getBalance('BTC');
-            amt_sat = me.main.getSatoshis(vals.amount),
+        var me      = this,
+            vals    = me.getValues(),
+            dest    = vals.destination,
+            msg     = false,
+            amount  = String(vals.amount).replace(',',''),
+            amt_sat = me.main.getSatoshis(amount),
             fee_sat = me.main.getSatoshis(String(vals.feeAmount).replace(' BTC','')),
-            bal_sat = me.main.getSatoshis(balance);
+            bal_sat = me.main.getSatoshis(me.main.getBalance('BTC'));
         // Verify that we have all the info required to do a send
         if(vals.amount==0){
             msg = 'You must enter a send amount';
         } else if(dest.length<25 || vals.destination.length>34 || !CWBitcore.isValidAddress(dest)){
             msg = 'You must enter a valid address';
         } else {
+            if(fee_sat > bal_sat)
+                msg = 'BTC balance below required amount.<br/>Please fund this address with some Bitcoin and try again.';
             if(vals.currency=='BTC' && (amt_sat + fee_sat) > bal_sat)
                 msg = 'Total exceeds available amount!<br/>Please adjust the amount or miner fee.';
-            if(vals.currency!='BTC' && fee_sat > bal_sat)
-                msg = 'Bitcoin balance below required amount.<br/>Please fund this address with some Bitcoin and try again.';
+            if(vals.currency!='BTC' && parseFloat(amount) > parseFloat(me.balance))
+                msg = 'Amount exceeds balance amount!';
         }
         if(msg){
             Ext.Msg.alert(null,msg);

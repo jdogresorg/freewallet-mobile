@@ -25,7 +25,10 @@ Ext.define('FW.view.BalancesList', {
                 '</div>' +
                 '<div class="fw-balanceslist-info">' +
                     '<div class="fw-balanceslist-currency">{currency}</div>' +
-                    '<div class="fw-balanceslist-amount">{[this.numberFormat(values)]}</div>' +
+                    '<div>' +
+                        '<div class="fw-balanceslist-amount">{[this.numberFormat(values)]}</div>' +
+                        '<div class="fw-balanceslist-price">{[this.priceFormat(values)]}</div>' +
+                    '</div>' +
                 '</div>' +
             '</div>',
             {
@@ -38,6 +41,12 @@ Ext.define('FW.view.BalancesList', {
                     if(/\./.test(amt) || values.currency=='BTC')
                         fmt += '.00000000';
                     return numeral(amt).format(fmt);
+                },
+                priceFormat: function(values){
+                    var str = '';
+                    if(typeof FW.TRACKED_PRICES[values.currency] != 'undefined')
+                        str = '$' + numeral(FW.TRACKED_PRICES[values.currency]['USD'] * values.amount).format('0,0.00');
+                    return str;
                 }
             }
         ),

@@ -69,7 +69,6 @@ Ext.application({
         'Broadcast',
         'Exchange',
         'Issuance',
-        'Notarize',
         'Send',
         'Receive',
         'Sign',
@@ -78,7 +77,6 @@ Ext.application({
         'Scan',
         'QRCode',
         'TransactionPriority',
-        'Shapeshift',
         'Bet',
         'Dividend'
 
@@ -104,6 +102,7 @@ Ext.application({
     },
 
     onUpdated: function() {
+        FW.app.getController('Main').clearAppCache();
         Ext.Msg.confirm(
             "Application Update",
             "This application has just successfully been updated to the latest version. Reload now?",

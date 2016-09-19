@@ -52,7 +52,7 @@ Ext.define('FW.view.Sign', {
                     xtype: 'textareafield',
                     maxrows: 3,
                     label: 'Signature',
-                    name: 'signature',
+                    name: 'signature'
                 }]                
             },{
                 xtype: 'container',
@@ -94,7 +94,7 @@ Ext.define('FW.view.Sign', {
                         tap: function(cmp){
                             var me  = Ext.getCmp('signView');
                             if(me.main.isNative)
-                                me.main.copyToClipboard(me.text);
+                                me.main.copyToClipboard(me.getSignedMessage());
                         }
                     }
                 }]

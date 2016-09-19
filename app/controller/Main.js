@@ -30,6 +30,7 @@ Ext.define('FW.controller.Main', {
         FW.WALLET_PREFIX  = sm.getItem('prefix')  || null;  // 4-char wallet hex prefix (used to quickly find addresses associated with this wallet in datastore)
         FW.WALLET_ADDRESS = sm.getItem('address') || null;  // Current wallet address info
         FW.TOUCHID        = sm.getItem('touchid') || false; // TouchID Authentication enabled (iOS 8+)
+        FW.TRACKED_PRICES = {};                             // latest price info for tracked currencies/tokens
         // Define default server/host settings
         FW.SERVER_INFO    = {
             mainnet: {
@@ -47,7 +48,7 @@ Ext.define('FW.controller.Main', {
                 cpSSL: true                             // Counterparty SSL Enabled (true=https, false=http)
             }                           
         };
-        // Define default miners fees (we pull dynamic fee data from blocktrail.com API)
+        // Define default miners fees (pull dynamic fee data from blocktrail.com API)
         var std = 0.0001
         FW.MINER_FEES = {
             standard: std,
@@ -71,6 +72,10 @@ Ext.define('FW.controller.Main', {
                 me.setWalletNetwork(FW.WALLET_NETWORK);
                 me.setWalletAddress(FW.WALLET_ADDRESS, true);
                 me.showMainView();
+                // Update prices immediately, and every 10 minutes
+                var fn = function(){ me.updatePrices(true); }
+                setInterval(fn, 600000);
+                fn();
             }
             if(FW.TOUCHID && me.isNative){
                 // Handle Touch ID authentication
@@ -199,8 +204,6 @@ Ext.define('FW.controller.Main', {
             tools.showReceiveTool(cfg);
         if(tool=='send')
             tools.showSendTool(cfg);
-        if(tool=='shapeshift')
-            tools.showShapeshiftTool(cfg);
         if(tool=='sign')
             tools.showSignTool(cfg);
 
@@ -608,10 +611,10 @@ Ext.define('FW.controller.Main', {
         });
     },
 
-    // Handle confirming with user that they really want to perform a full wallet reset
-    promptFullReset: function(){
+    // Handle confirming with user that they really want to logou
+    promptLogout: function(){
         // Confirm with user that they want to generate new wallet
-        Ext.Msg.confirm('Reset Application', 'Are you sure?', function(btn){
+        Ext.Msg.confirm('Logout / Clear Data', 'Are you sure?', function(btn){
             if(btn=='yes'){
                 localStorage.clear();
                 location.reload();
@@ -619,6 +622,36 @@ Ext.define('FW.controller.Main', {
         });
     },
 
+    // Handle clearing sencha app-cache to force reload of files
+    // fixes issue with app not updating localStorage properly at times
+    clearAppCache: function(reload){
+        var ls   = localStorage,
+            keys = [],
+            patt = [
+                'app.js',
+                'app.json',
+                'resources/'
+            ];
+        // Loop through all keys and find any that match our patterns
+        for(var i = 0, ln = ls.length; i < ln; i += 1){
+            var key = ls.key(i);
+            if(key){
+                patt.forEach(function(pattern){
+                    if(key.indexOf(pattern)!== -1)
+                        keys.push(key);
+                });
+            }
+        }
+        keys.forEach(function(key){
+            console.log('removing appCache item ' + key);
+            ls.removeItem(key);
+        });
+        // Handle reloading window after 1 second
+        if(reload)
+            Ext.defer(function(){
+                window.location.reload();
+            },1000);
+    },
 
     // Handle setting the user passcode and saving it to disk so we can validate it later
     setPasscode: function(code){
@@ -786,7 +819,7 @@ Ext.define('FW.controller.Main', {
     // Detect if a string is a valid URL
     isUrl: function(str){
         var me = this,
-            re = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/i;
+            re = /^(http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/i;
         return re.test(str)
     },
 
@@ -794,17 +827,14 @@ Ext.define('FW.controller.Main', {
     // Handle opening urls 
     openUrl: function(url){
         var me = this,
-            re = /^(ftp|http|https):\/\//i;
+            re = /^(http|https):\/\//i;
         if(url){
             // Handle adding http:// to any invalid URLs
             if(!re.test(url))
                 url = 'http://' + url;
             if(me.isUrl(url)){
-                if(me.isNative){
-                    Ext.device.Device.openURL(url);
-                } else {
-                    window.open(url);
-                }
+                var loc = (me.isNative) ? '_system' : '_blank';
+                window.open(url,loc);
             }
         }
     },
@@ -852,12 +882,14 @@ Ext.define('FW.controller.Main', {
         // Handle parsing in bitcoin or counterparty URI data
         if(uri=='bitcoin'||uri=='counterparty'){
             var y    = x[1].split('?'),
-                z    = y[1].split('&'),
+                z    = (y[1]) ? y[1].split('&') : [],
                 addr = y[0];
             for (var i = 0; i < z.length; i++){
                 var a = z[i].split('=');
                 o[decodeURIComponent(a[0])] = decodeURIComponent(a[1]);
             }
+            if(uri=='bitcoin')
+                o.asset = 'BTC';
         }
         // Handle validating that the provided address is valid
         if(addr.length>25 && CWBitcore.isValidAddress(addr)){
@@ -1145,7 +1177,52 @@ Ext.define('FW.controller.Main', {
     },
 
 
-
+    // Handle updating price info for various currencies/tokens from coinmarketcap.com
+    updatePrices: function(refresh){
+        var me  = this;
+        // Define list of id:name mappings
+        var ids = {
+            'BCY'           : 'BITCRYSTALS',
+            'BTC'           : null,
+            'FLDC'          : null,
+            'GEMZ'          : null,
+            'HMC'           : 'HOMMALICOIN',
+            'HOR'           : 'HORIEMONCARD',
+            'LTBC'          : 'LTBCOIN',
+            'SATOSHICARD'   : null,
+            'SCOT'          : 'SCOTCOIN',
+            'SJCX'          : null,
+            'SWARM'         : null,
+            'ZAIF'          : null,
+            'XCP'           : null,
+            'XTC'           : 'TILECOINX',
+            'WS'            : 'WOODSHARES'
+        };
+        // Request current pricing info from coinmarketcap.com
+        me.ajaxRequest({
+            url: 'https://api.coinmarketcap.com/v1/ticker/',
+            method: 'GET',
+            success: function(o){
+                if(o && o.length){
+                    Ext.each(o, function(item){
+                        // console.log('item=',item);
+                        if(typeof ids[item.symbol] != 'undefined'){
+                            var key = (ids[item.symbol] == null) ? item.symbol : ids[item.symbol];
+                            FW.TRACKED_PRICES[key] = {
+                                'USD': item.price_usd,
+                                'BTC': item.price_btc
+                            }
+                        }
+                    });
+                    // console.log('FW.TRACKED_PRICES=',FW.TRACKED_PRICES)
+                    // Update Balances list now that we have updated price info
+                    if(refresh){
+                        Ext.getCmp('balancesList').refresh();
+                    }
+                }
+            }
+        },true);
+    },
 
 
     /* 
@@ -1164,7 +1241,7 @@ Ext.define('FW.controller.Main', {
 
     // Handle generating a send transaction
     cpSend: function(network, source, destination, currency, amount, fee, callback){
-        console.log('cpSend network, source, destination, currency, amount, fee=', network, source, destination, currency, amount, fee);
+        // console.log('cpSend network, source, destination, currency, amount, fee=', network, source, destination, currency, amount, fee);
         var me = this,
             cb = (typeof callback === 'function') ? callback : false; 
         // Handle creating the transaction
@@ -1196,7 +1273,7 @@ Ext.define('FW.controller.Main', {
 
     // Handle generating a broadcast transaction
     cpBroadcast: function(network, source, text, value, feed_fee, fee, callback){
-        console.log('cpBroadcast network, source, text, value, feed_fee, fee=', network, source, text, value, feed_fee, fee);
+        // console.log('cpBroadcast network, source, text, value, feed_fee, fee=', network, source, text, value, feed_fee, fee);
         var me = this,
             cb = (typeof callback === 'function') ? callback : false; 
         // Handle creating the transaction
@@ -1227,7 +1304,7 @@ Ext.define('FW.controller.Main', {
 
     // Handle generating a issuance transaction
     cpIssuance: function(network, source, asset, description, divisible, quantity, destination, fee, callback){
-        console.log('cpIssuance network, source, asset, description, divisible, quantity, destination, fee=', network, source, asset, description, divisible, quantity, destination, fee);
+        // console.log('cpIssuance network, source, asset, description, divisible, quantity, destination, fee=', network, source, asset, description, divisible, quantity, destination, fee);
         var me = this,
             cb = (typeof callback === 'function') ? callback : false; 
         // Handle creating the transaction
@@ -1254,6 +1331,6 @@ Ext.define('FW.controller.Main', {
                 me.cbError(msg, cb);
             }
         });
-    },
+    }
 
 });

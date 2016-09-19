@@ -18,6 +18,7 @@
             xtype: 'container',
             layout: 'vbox',
             margin: '5 5 5 5',
+            cls: 'no-label-ellipsis',
             items:[{
                 xtype: 'container',
                 layout: 'hbox',
@@ -87,6 +88,12 @@
                 },{
                     label: 'Total Supply',
                     itemId: 'supply'
+                },{
+                    label: 'USD Price',
+                    itemId: 'price'
+                },{
+                    label: 'BTC Price',
+                    itemId: 'btc'
                 },{
                     label: 'Divisible',
                     itemId: 'divisible'

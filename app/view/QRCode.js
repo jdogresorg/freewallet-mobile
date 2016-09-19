@@ -72,7 +72,7 @@ Ext.define('FW.view.QRCode', {
             docked: 'bottom',
             xtype:'panel',
             itemId: 'address',
-            cls: 'x-qrcode-text',
+            cls: 'x-qrcode-text'
         }],
         listeners: {
             painted: function(cmp){

@@ -33,6 +33,8 @@
         me.balance     = me.down('[itemId=balance]');
         me.description = me.down('[itemId=description]');
         me.supply      = me.down('[itemId=supply]');
+        me.price       = me.down('[itemId=price]');
+        me.btc         = me.down('[itemId=btc]');
         me.divisible   = me.down('[itemId=divisible]');
         me.locked      = me.down('[itemId=locked]');
         me.website     = me.down('[itemId=website]');
@@ -66,7 +68,7 @@
         var me   = this,
             data = cfg.data;
         // Store current data so we can easily reference
-        me.setData(cfg.data);
+        me.setData(data);
         // Back button
         if(cfg.back){
             me.tb.backBtn.show();
@@ -94,15 +96,27 @@
             fmt = '0,0';
         if(data.divisible)
             fmt += '.00000000';
+        // Define balance
+        var bal = numeral(data.amount).format(fmt),
+            btc = 'NA';
+        // Handle determining the USD price
+        if(typeof FW.TRACKED_PRICES[data.currency] != 'undefined'){
+            var o = FW.TRACKED_PRICES[data.currency];
+            bal += ' ($' + numeral(o.USD * data.amount).format('0,0.00') + ')';
+            data.price = numeral(o.USD).format('0,0.00');
+            data.btc = numeral(o.BTC).format('0,0.00000000');
+        }
         me.description.setValue(data.description);
-        me.currency.setValue(data.currency);
-        me.balance.setValue(numeral(data.amount).format(fmt));
+        me.currency.setValue((data.currency=='BTC') ? 'BTC (Bitcoin)' : data.currency);
         me.supply.setValue(numeral(data.supply).format(fmt));
         me.divisible.setValue((data.divisible) ? 'True' : 'False');
         me.locked.setValue((data.locked) ? 'True' : 'False');
-        me.website.setValue((data.website) ? data.website : 'NA');
+        me.website.setValue((data.website) ? data.website : '');
         me.issuer.setValue((data.issuer) ? data.issuer : 'NA');
         me.owner.setValue((data.owner) ? data.owner : 'NA');
+        me.balance.setValue(bal);
+        me.price.setValue((data.price) ? '$' + data.price : 'NA');
+        me.btc.setValue((data.btc) ? data.btc : 'NA');
     },
 
 
@@ -113,7 +127,7 @@
         me.currencyValue = data.currency;
         if(data.currency=='BTC'){
             me.updateData({
-                currency: 'Bitcoin (BTC)',
+                currency: 'BTC',
                 amount: data.amount,
                 supply: '21000000.00000000',
                 website: 'http://bitcoin.org',
@@ -140,6 +154,10 @@
                         var desc = o.description;
                         if(me.main.isUrl(desc))
                             o.website = desc;
+                        if(data.currency=='XCP'){
+                            o.website = 'https://counterparty.io';
+                            o.description = 'Counterparty extends Bitcoin in new and powerful ways.';                       
+                        }
                         me.updateData(Ext.apply(o,{ 
                             amount: data.amount,
                             currency: data.currency
@@ -170,8 +188,8 @@
                 // console.log('enhanced info o=',o);
                 if(o.website)
                     me.website.setValue(o.website);
-                if(o.image)
-                    me.image.setSrc(o.image);
+                // if(o.image)
+                //     me.image.setSrc(o.image);
             }
         });            
     }

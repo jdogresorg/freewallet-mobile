@@ -10,7 +10,7 @@
 
     config: {
         layout: 'vbox',
-        scrollable: true,
+        scrollable: 'vertical',
         cls: 'fw-panel',
         items: [{
             xtype: 'fw-toptoolbar',
@@ -49,7 +49,7 @@
                     handler: function(){
                         FW.app.getController('Main').showTool('issue',{ reset: true });
                     }
-                },]
+                }]
             },{
                 items: [{
                     text: 'Broadcast<br/>Message',
@@ -64,32 +64,11 @@
                         FW.app.getController('Main').showTool('sign',{ reset: true });
                     }
                 },{
-                    text: 'Notarize<br/>File',
-                    iconCls: 'fa fa-file fa-2x',
-                    margin: '0 0 5 0',
-                    handler: function(){
-                        FW.app.getController('Main').showTool('notarize',{ reset: true });
-                    }
-                }]
-            },{
-                items: [{
                     text: 'Decentralized<br>Exchange',
                     iconCls: 'fa fa-exchange fa-2x',
-                    handler: function(){
-                        FW.app.getController('Main').showTool('exchange',{ reset: true });
-                    }
-                },{
-                    text: 'Shapeshift<br/>Exchange',
-                    iconCls: 'fa fa-book fa-2x',
-                    handler: function(){
-                        FW.app.getController('Main').showTool('shapeshift',{ reset: true });
-                    }
-                },{
-                    text: 'OTC<br>Market',
-                    iconCls: 'fa fa-book fa-2x',
                     margin: '0 0 5 0',
                     handler: function(){
-                        FW.app.getController('Main').showTool('otcmarket',{ reset: true });
+                        FW.app.getController('Main').showTool('exchange',{ reset: true });
                     }
                 }]
             // },{
@@ -106,9 +85,12 @@
             //             FW.app.getController('Main').showTool('dividend',{ reset: true });
             //         }
             //     },{
-            //         xtype: 'container',
+            //         text: 'OTC<br>Market',
+            //         iconCls: 'fa fa-book fa-2x',
             //         margin: '0 0 5 0',
-            //         flex: 1
+            //         handler: function(){
+            //             FW.app.getController('Main').showTool('otcmarket',{ reset: true });
+            //         }
             //     }]
             }]
 

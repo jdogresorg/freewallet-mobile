@@ -12,6 +12,8 @@ Features
 - **Broadcast** - Broadcast any message
 - **Passcode/PIN** - Protect wallet with additional security
 - **TouchID** - Fingerprint support for iOS
+- **Mainnet/Testnet** - Works on both mainnet and testnet
+- **Multiple Addresses** - Supports multiple addresses
 
 Comments or Questions?
 =====

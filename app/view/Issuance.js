@@ -34,7 +34,7 @@ Ext.define('FW.view.Issuance', {
                     name: 'type',
                     options: [
                         {text: 'Alphabetical Name', value: 1},
-                        {text: 'Numeric Name',      value: 2},
+                        {text: 'Numeric Name',      value: 2}
                     ],
                     listeners: {
                         change: function(cmp, newVal, oldVal, opts){
@@ -121,7 +121,6 @@ Ext.define('FW.view.Issuance', {
     initialize: function(){
         var me  = this,
             cfg = me.config;
-        console.log('initialize');
         // Setup alias to main controller
         me.main = FW.app.getController('Main');
         me.tb   = me.down('fw-toptoolbar');
@@ -231,7 +230,7 @@ Ext.define('FW.view.Issuance', {
                             fn();
                     });
                 }
-            },
+            }
         });
     }
 

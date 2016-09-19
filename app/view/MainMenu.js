@@ -15,6 +15,8 @@ Ext.define('FW.view.MainMenu', {
         items:[{
             title: 'FreeWallet',
             xtype: 'toolbar',
+            height: 37,
+            border: 0,
             docked: 'top',
             defaults: {
                 ui: 'plain',
@@ -47,86 +49,55 @@ Ext.define('FW.view.MainMenu', {
                 FW.app.getController('Main').showQRCodeView({ text: FW.WALLET_ADDRESS.address });
             }
         },{
-            text: 'View Passphrase',
-            icon: 'fa-user-secret',
+
+            text: 'Send',
+            icon: 'fa-paper-plane',
             leaf: true,
             handler: function(){
-                FW.app.getController('Main').showWalletPassphrase();
+                FW.app.getController('Main').showTool('send',{ reset: true });
             }
         },{
-            text: 'Tools', 
-            icon: 'fa-gears', 
-            items:[{
-                text: 'Send',
-                icon: 'fa-paper-plane',
-                leaf: true,
-                handler: function(){
-                    FW.app.getController('Main').showTool('send',{ reset: true });
-                }
-            },{
-                text: 'Receive',
-                icon: 'fa-qrcode',
-                leaf: true,
-                handler: function(){
-                    FW.app.getController('Main').showTool('receive',{ reset: true });
-                }
-            },{
-                text: 'Issue Token',
-                icon: 'fa-bank',
-                leaf: true,
-                handler: function(){
-                    FW.app.getController('Main').showTool('issue',{ reset: true });
-                }
-            },{
-                text: 'Broadcast Message',
-                icon: 'fa-bullhorn',
-                leaf: true,
-                handler: function(){
-                    FW.app.getController('Main').showTool('broadcast',{ reset: true });
-                }
-            },{
-                text: 'Sign Message',
-                icon: 'fa-edit',
-                leaf: true,
-                handler: function(){
-                    FW.app.getController('Main').showTool('sign',{ reset: true });
-                }
-            },{
-                text: 'Notarize File',
-                icon: 'fa-file',
-                leaf: true,
-                handler: function(){
-                    FW.app.getController('Main').showTool('notarize',{ reset: true });
-                }
-            },{
-                text: 'Decentralized Exchange',
-                icon: 'fa-exchange',
-                leaf: true,
-                handler: function(){
-                    FW.app.getController('Main').showTool('exchange',{ reset: true });
-                }
-            },{
-                text: 'Shapeshift Exchange',
-                icon: 'fa-book',
-                leaf: true,
-                handler: function(){
-                    FW.app.getController('Main').showTool('shapeshift',{ reset: true });
-                }
-            },{
-                text: 'OTC Market',
-                icon: 'fa-book',
-                leaf: true,
-                handler: function(){
-                    FW.app.getController('Main').showTool('otcmarket',{ reset: true });
-                }
-            }]
-        },{
-            text: 'Logout / Clear Data',
-            icon: 'fa-sign-out',
+            text: 'Receive',
+            icon: 'fa-qrcode',
             leaf: true,
             handler: function(){
-                FW.app.getController('Main').promptFullReset();
+                FW.app.getController('Main').showTool('receive',{ reset: true });
             }
+        },{
+            text: 'Issue Token',
+            icon: 'fa-bank',
+            leaf: true,
+            handler: function(){
+                FW.app.getController('Main').showTool('issue',{ reset: true });
+            }
+        },{
+            text: 'Broadcast Message',
+            icon: 'fa-bullhorn',
+            leaf: true,
+            handler: function(){
+                FW.app.getController('Main').showTool('broadcast',{ reset: true });
+            }
+        },{
+            text: 'Sign Message',
+            icon: 'fa-edit',
+            leaf: true,
+            handler: function(){
+                FW.app.getController('Main').showTool('sign',{ reset: true });
+            }
+        },{
+            text: 'Decentralized Exchange',
+            icon: 'fa-exchange',
+            leaf: true,
+            handler: function(){
+                FW.app.getController('Main').showTool('exchange',{ reset: true });
+            }
+        // },{
+        //     text: 'Logout / Clear Data',
+        //     icon: 'fa-sign-out',
+        //     leaf: true,
+        //     handler: function(){
+        //         FW.app.getController('Main').promptLogout();
+        //     }
         }]
     },
 
