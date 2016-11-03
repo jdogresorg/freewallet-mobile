@@ -57,6 +57,8 @@
             },{
                 xtype: 'container',
                 layout: 'hbox',
+                itemId: 'actionButtons',
+                margin: '0 0 5 0',
                 defaults: {
                     xtype: 'button',
                     flex: 1
@@ -75,7 +77,7 @@
                 }]
             },{
                 xtype: 'fieldset',
-                margin: '5 0 5 0',
+                margin: '0 0 5 0',
                 defaults:{
                     xtype: 'textfield',
                     labelWidth: 80,

@@ -40,6 +40,7 @@
         me.website     = me.down('[itemId=website]');
         me.issuer      = me.down('[itemId=issuer]');
         me.owner       = me.down('[itemId=owner]');
+        me.actionBtns  = me.down('[itemId=actionButtons]');
         me.sendBtn     = me.down('[itemId=send]');
         me.receiveBtn  = me.down('[itemId=receive]');
         // Tablet specific fields
@@ -76,6 +77,12 @@
                 me.tb.onBack = cfg.back;
         } else {
             me.tb.backBtn.hide();
+        }
+        // Hide Send/Receive buttons for XCP on iOS
+        if(me.main.isNative==true && cfg.data.currency=='XCP' && Ext.os.name=='iOS'){
+            me.actionBtns.hide();
+        } else {
+            me.actionBtns.show();
         }
         // Handle hiding placeholder and showing currency information
         if(me.placeholder){
