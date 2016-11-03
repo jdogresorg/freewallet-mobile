@@ -188,6 +188,9 @@
         var me = this;
         if(!me.main.isUrl(url))
             url = 'http://' + url;
+        // Switch http to https if app loaded via https (https->http XHR requests will fail)
+        if(document.location.protocol=='https:')
+            url = url.replace('http://','https://');
         me.main.ajaxRequest({
             url: url,
             // Success function called when we receive a success response
