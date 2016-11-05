@@ -78,12 +78,6 @@
         } else {
             me.tb.backBtn.hide();
         }
-        // Hide Send/Receive buttons for XCP on iOS
-        if(me.main.isNative==true && cfg.data.currency=='XCP' && Ext.os.name=='iOS'){
-            me.actionBtns.hide();
-        } else {
-            me.actionBtns.show();
-        }
         // Handle hiding placeholder and showing currency information
         if(me.placeholder){
             me.placeholder.hide();

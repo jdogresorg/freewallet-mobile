@@ -474,14 +474,17 @@ Ext.define('FW.controller.Main', {
                         me.updateAddressBalance(address, type, item.asset, item.amount);
                     });
                 } else {
-                    me.updateAddressBalance(address, 1, 'XCP', '0.00000000');
+                    // Show 0.00000000 for XCP balance if we have none (prevent display on iOS)
+                    if(!(me.isNative && Ext.os.name=='iOS'))
+                        me.updateAddressBalance(address, 1, 'XCP', '0.00000000');
                 }
                 me.saveStore('Balances');
                 if(callback)
                     callback();
             }
-        }, true);
+        }, true);            
     },
+
 
     // Handle getting address balance information
     getAssetInfo: function(address, callback){
@@ -934,7 +937,7 @@ Ext.define('FW.controller.Main', {
     copyToClipboard: function(str){
         var me = this;
         if(me.isNative)
-            window.plugins.clipboard.copy(str);
+            cordova.plugins.clipboard.copy(str);
     },
 
 

@@ -156,6 +156,9 @@ Ext.define('FW.view.Issuance', {
             me.divisible.setValue(1);
             me.priority.reset();
         }
+        // Default to numeric asset on iOS
+        if(me.main.isNative && Ext.os.name=='iOS')
+            me.type.setValue(2);
         me.quantity.setDivisible(true);
     },
 
