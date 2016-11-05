@@ -1,11 +1,11 @@
 FreeWallet
 =====
-FreeWallet is an open source mobile wallet which supports Bitcoin and tokens.
+FreeWallet is an open source mobile wallet which supports Bitcoin and Counterparty.
 
 Features
 =====
 - **Secure** - Wallet Passphrase & private keys never leave device
-- **Send** - Send Bitcoin or any other token/asset
+- **Send** - Send Bitcoin, XCP, and any counterparty token/asset
 - **Receive** - Receive payments via scanning QRCode
 - **Issue** - Create a Counterparty token/asset
 - **Sign** - Sign any message
