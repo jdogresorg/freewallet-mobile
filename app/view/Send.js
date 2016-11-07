@@ -148,7 +148,7 @@ Ext.define('FW.view.Send', {
                     value: '$0.00',
                     component: {
                         // Change type to tel since it shows numbers keyboard, and allows for additional chars like ,
-                        type: 'tel',
+                        type: 'number',
                         disabled: false
                     },
                     listeners: {

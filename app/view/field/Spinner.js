@@ -9,8 +9,8 @@ Ext.define('FW.view.field.Spinner', {
     
     config : {
         component: {
-            // Change type to tel since it shows numbers keyboard, and allows for additional chars like ,
-            type: 'tel',
+            // Change type to number since it shows numbers keyboard, and allows for additional chars like ,
+            type: 'number',
             disabled: false
         },
         divisible: false // Flag to indicate if the amount is divisible
