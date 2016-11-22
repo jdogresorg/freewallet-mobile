@@ -137,7 +137,10 @@ Ext.define('FW.view.Sign', {
             me.message.setValue('');
             me.signature.setValue('');
             me.isSigned = false;
-        }        
+        }
+        // Pre-populate message field if we have message
+        if(cfg.message)
+            me.message.setValue(cfg.message);
     },
 
     // Handle signing message and updating signature field

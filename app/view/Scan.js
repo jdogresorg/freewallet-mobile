@@ -43,8 +43,8 @@ Ext.define('FW.view.Scan', {
         var me  = this,
             cfg = me.config;
         me.main = FW.app.getController('Main');
-        if(cfg.view)
-            me.view = cfg.view;
+        if(cfg.callback)
+            me.callback = cfg.callback;
         me.callParent();
         me.on('painted', me.setupReader);
     },
@@ -79,30 +79,16 @@ Ext.define('FW.view.Scan', {
 
     // Handle validating any scanned data
     onScan: function(data){
+        // console.log('onScan before data=',data);
         var me   = Ext.ComponentQuery.query('fw-scanqrcode')[0],
             data = me.main.getScannedData(String(data));
-        if(data.valid){
-            if(me.view)
-                me.view.updateForm(data);
+        // console.log('onScan after data=',data);
+        // Hide view if we detected data in scan
+        if(data.valid)
             me.hideView();
-        }
-        // // console.log('onScan=',data);
-        // if(data.length>25){
-        //     var arr  = data.split('?'),
-        //         addr = arr[0];
-        //     if(checkBitcoinAddress(addr)){
-        //         if(me.view){
-        //             // Handle passing the data forward to the form
-        //             me.view.updateForm({
-        //                 address: addr,
-        //                 amount: null,
-        //                 asset: null,
-        //                 message: null
-        //             });
-        //         }
-        //         me.hideView();
-        //     }   
-        // }
+        // Call callback function to process scan data
+        if(me.callback && typeof me.callback === 'function')
+            me.callback(data);
     },
 
    // Handle scanning errors

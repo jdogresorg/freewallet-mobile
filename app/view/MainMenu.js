@@ -43,13 +43,19 @@ Ext.define('FW.view.MainMenu', {
             }
         },{
             text: 'View Wallet Address', 
-            icon: 'fa-qrcode', 
+            icon: 'fa-bitcoin', 
             leaf: true,
             handler: function(){
                 FW.app.getController('Main').showQRCodeView({ text: FW.WALLET_ADDRESS.address });
             }
         },{
-
+            text: 'Scan QRcode', 
+            icon: 'fa-qrcode', 
+            leaf: true,
+            handler: function(){
+                FW.app.getController('Main').generalQRCodeScan();
+            }
+        },{
             text: 'Send',
             icon: 'fa-paper-plane',
             leaf: true,
@@ -58,7 +64,7 @@ Ext.define('FW.view.MainMenu', {
             }
         },{
             text: 'Receive',
-            icon: 'fa-qrcode',
+            icon: 'fa-smile-o',
             leaf: true,
             handler: function(){
                 FW.app.getController('Main').showTool('receive',{ reset: true });
@@ -91,13 +97,6 @@ Ext.define('FW.view.MainMenu', {
             handler: function(){
                 FW.app.getController('Main').showTool('exchange',{ reset: true });
             }
-        // },{
-        //     text: 'Logout / Clear Data',
-        //     icon: 'fa-sign-out',
-        //     leaf: true,
-        //     handler: function(){
-        //         FW.app.getController('Main').promptLogout();
-        //     }
         }]
     },
 

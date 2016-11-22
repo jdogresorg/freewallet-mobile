@@ -867,9 +867,18 @@ Ext.define('FW.controller.Main', {
             if(rec.data.address==address)
                 index = rec.data.index;
         });
+        // If we have an index, use it
         if(index!==false){
             var derived = key.derive("m/0'/0/" + index);
             priv = derived.privateKey.toWIF();
+        } else {
+            // Loop through first 50 addresses trying to find
+            for(var i=0; i<50; i++){
+                var derived = key.derive("m/0'/0/" + index),
+                    addr    = bc.Address(derived.publicKey, net).toString();
+                if(address==addr)
+                    priv = derived.privateKey.toWIF();
+            }
         }
         return priv;
     }, 
@@ -884,12 +893,17 @@ Ext.define('FW.controller.Main', {
             o    = { valid: false };
         // Handle parsing in bitcoin or counterparty URI data
         if(uri=='bitcoin'||uri=='counterparty'){
+            // Fix any callback urls by stitching the url back together
+            for (var i = 0; i < x.length; i++)
+                if(i>1)
+                    x[1] += x[i];
+            // Extract data into object
             var y    = x[1].split('?'),
                 z    = (y[1]) ? y[1].split('&') : [],
                 addr = y[0];
             for (var i = 0; i < z.length; i++){
                 var a = z[i].split('=');
-                o[decodeURIComponent(a[0])] = decodeURIComponent(a[1]);
+                o[decodeURIComponent(a[0])] = decodeURIComponent(a[1]).replace(/\+/g,' ').trim();
             }
             if(uri=='bitcoin')
                 o.asset = 'BTC';
@@ -898,20 +912,123 @@ Ext.define('FW.controller.Main', {
         if(addr.length>25 && CWBitcore.isValidAddress(addr)){
             o.valid   = true;
             o.address = addr;
+        } else {
+            // If action is specified, assume valid
+            if(o.action)
+                o.valid = true;
         }
         return o;
     },
 
+    // Handle extracting hostname from a url
+    getUrlHostname: function(url){
+        var arr  = url.split('/');
+        // Remove protocol (http/https)
+        var host = (url.indexOf("://") > -1) ? arr[2] : arr[0];
+        // Remove Port
+        host = host.split(':')[0];
+        return host;
+    },
+
+
+    // Handle making a callback request to a server given a URL and some params
+    serverCallback: function(url, params, method, callback){
+        var me = this;
+        // console.log('serverCallback', url, params, method, callback);
+        // Convert querystring name/value pairs to params
+        if(method=='POST'){
+            var x = url.split('?'),
+                y = x[1].split('&');
+            url = x[0];
+            Ext.each(y, function(val){
+                var z = val.split('=');
+                params[z[0]] = z[1];
+            });
+        }
+        me.ajaxRequest({
+            url: url,
+            method: method || 'GET',
+            params: params,
+            failure: function(o){
+                if(callback)
+                    callback();
+            },
+            success: function(o){
+                if(callback)
+                    callback(o);
+            }
+        },true);
+    },
+
+
+    // Handle general/generic QRCode scanning and processing of results
+    generalQRCodeScan: function(){
+        var me = this;
+        me.scanQRCode(null, function(o){
+            // console.log('generalQRCodeScan o=',o);
+            // Handle signing messages
+            if(o.action=='sign' && o.message){
+                if(o.callback){
+                    // Use given address or default to current address
+                    var addr = (o.address) ? o.address : FW.WALLET_ADDRESS.address,
+                        host = me.getUrlHostname(o.callback),
+                        key  = me.getPrivateKey(FW.WALLET_NETWORK, addr);
+                    // Only proceed if we were able to get the key for the address
+                    if(key){
+                        var sig = me.signMessage(FW.WALLET_NETWORK, addr, o.message);
+                        if(sig){
+                            // Verify with user that they want to transmit signed message to host
+                            Ext.Msg.show({
+                                message: 'Send signed message to ' + host + '?', 
+                                buttons: Ext.MessageBox.YESNO,
+                                fn: function(btn){
+                                    if(btn=='yes'){
+                                        var p = {
+                                            address: addr,
+                                            message: o.message,
+                                            signature: sig
+                                        };
+                                        // Send callback to server, we don't care if it succeeds or fails
+                                        me.serverCallback(o.callback, p, 'POST');
+                                    }
+                                }
+                            });
+                        } else {
+                            Ext.Msg.alert(null,'Error while trying to sign message!');
+                        }
+                    } else {
+                        Ext.Msg.alert(null,'Unable to sign message with given address!');
+                    }
+                } else {
+                    // Show 'Sign' tool and pass message to sign
+                    me.showTool('sign',{ message: o.message });
+                }
+            }
+            // Handle Broadcasts
+            if(o.action=='broadcast'){
+                // Show 'Broadcast' tool and pass message to broadcast
+                me.showTool('broadcast',{ message: o.message });
+            }
+        });
+    },
+
 
     // Handle scanning a QR code both natively, and using HTML5
-    scanQRCode: function(view){
+    scanQRCode: function(view, callback){
         var me = this;
+        // console.log('scanQRCode view=',view, callback);
+        // Callback function run when scan has completed 
+        var cb = function(data){
+            // console.log('cb data=',data);
+            if(data.valid && view && typeof view.updateForm === 'function')
+                view.updateForm(data);
+            if(typeof callback === 'function')
+                callback(data);
+        }
         // Handle native scanning via ZBar barcode scanner (https://github.com/tjwoon/csZBar)
         if(me.isNative){
             var onSuccess = function(data){
-                var data = me.getScannedData(String(data));
-                if(data.valid && view)
-                    view.updateForm(data);
+                cb(me.getScannedData(String(data)));
             };
             var onError = function(error){
                 console.log('error=',error);
@@ -928,7 +1045,7 @@ Ext.define('FW.controller.Main', {
             }, onSuccess, onError);
         } else {
             // Handle non-native scanning via HTML5 (https://github.com/LazarSoft/jsqrcode)
-            me.showScanQRCodeView({ view: view });
+            me.showScanQRCodeView({ callback: cb });
         }
     },
 

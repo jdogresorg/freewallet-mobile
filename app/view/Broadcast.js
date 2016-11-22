@@ -110,6 +110,9 @@ Ext.define('FW.view.Broadcast', {
             me.value.reset();
             me.priority.reset();
         }        
+        // Pre-populate message field if we have message
+        if(cfg.message)
+            me.message.setValue(cfg.message);
     },
 
 

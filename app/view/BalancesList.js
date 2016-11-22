@@ -16,7 +16,7 @@ Ext.define('FW.view.BalancesList', {
         striped: true,
         disableSelection: false,
         store: 'Balances',
-        emptyText: 'No balances found',
+        emptyText: '',
         itemHeight: 60,
         itemTpl: new Ext.XTemplate(
             '<div class="fw-balanceslist-item">' +
