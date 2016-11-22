@@ -14,7 +14,7 @@ Features
 - **TouchID** - Fingerprint support for iOS
 - **Mainnet/Testnet** - Works on both mainnet and testnet
 - **Multiple Addresses** - Supports multiple addresses
-- **QR Code Authorization* - Supports [QR Code Authorization](https://github.com/Authpartyio/Spec/blob/master/QR_Authorization.spec.md)
+- **QR Code Authorization** - Supports [QR Code Authorization](https://github.com/Authpartyio/Spec/blob/master/QR_Authorization.spec.md)
 
 Comments or Questions?
 =====
