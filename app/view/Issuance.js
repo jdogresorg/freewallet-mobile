@@ -86,8 +86,9 @@ Ext.define('FW.view.Issuance', {
                     listeners: {
                         change: function(cmp, newVal, oldVal, opts){
                             if(newVal!=oldVal){
-                                var me = Ext.getCmp('issuanceView');
-                                me.quantity.setDivisible(newVal);
+                                var me  = Ext.getCmp('issuanceView'),
+                                    dec = (newVal) ? 8 : 0;
+                                me.quantity.setDecimalPrecision(dec);
                             }
                         }
                     }
@@ -159,7 +160,7 @@ Ext.define('FW.view.Issuance', {
         // Default to numeric asset on iOS
         if(me.main.isNative && Ext.os.name=='iOS')
             me.type.setValue(2);
-        me.quantity.setDivisible(true);
+        me.quantity.setDecimalPrecision(8);
     },
 
 

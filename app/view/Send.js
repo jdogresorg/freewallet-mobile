@@ -142,15 +142,14 @@ Ext.define('FW.view.Send', {
                     value: '0.00000000',
                     readOnly: true
                 },{
-                    xtype: 'textfield',
-                    label: 'USD',
+                    xtype: 'fw-spinnerfield',
+                    label: 'USD ($)',
                     name: 'price',
-                    value: '$0.00',
-                    component: {
-                        // Change type to tel since it shows numbers keyboard, and allows for additional chars like ,
-                        type: 'number',
-                        disabled: false
-                    },
+                    value: 0.00,
+                    decimalPrecision: 2,
+                    minValue: 0,
+                    maxValue: 100000000.00000000,
+                    stepValue: 1,
                     listeners: {
                         // Handle detecting price changes and updating the amount
                         change: function(cmp, newVal, oldVal){
@@ -158,16 +157,12 @@ Ext.define('FW.view.Send', {
                                 var me  = Ext.getCmp('sendView'),
                                     cur = me.currency.getValue();
                                 if(newVal=='')
-                                    newVal = '0';
-                                // Make sure price starts with $
-                                if(newVal.substr(0,1)!='$' || !/\./.test(newVal))
-                                    cmp.setValue('$' + numeral(newVal).format('0,0.00'));
+                                    newVal = 0;
                                 // Handle updating amount
                                 if(!me.price.isDisabled() && typeof FW.TRACKED_PRICES[cur] != 'undefined'){
-                                    var amount = (parseFloat(newVal.replace('$','').replace(',','')) / FW.TRACKED_PRICES[cur].USD) * 1,
-                                        fmt    = (me.amount.divisible) ? '0,0.00000000' : '0,0';
+                                    var amount = (numeral(newVal).value() / FW.TRACKED_PRICES[cur].USD) * 1;
                                     me.amount.suspendEvents();
-                                    me.amount.setValue(numeral(amount).format(fmt));
+                                    me.amount.setValue(numeral(amount).format(me.amount.getNumberFormat()));
                                     me.amount.resumeEvents(true);
                                 }
                             }
@@ -177,7 +172,8 @@ Ext.define('FW.view.Send', {
                     xtype: 'fw-spinnerfield',
                     label: 'Amount',
                     name: 'amount',
-                    value: 1,
+                    value: 0,
+                    decimalPrecision: 8,
                     minValue: 0,
                     maxValue: 100000000.00000000,
                     stepValue: 0.01000000,
@@ -189,9 +185,9 @@ Ext.define('FW.view.Send', {
                                     cur = me.currency.getValue();
                                 // Handle updating price
                                 if(!me.price.isDisabled() && typeof FW.TRACKED_PRICES[cur] != 'undefined'){
-                                    var price = parseFloat(FW.TRACKED_PRICES[cur].USD / 1) * parseFloat(newVal.replace('$','').replace(',',''));
+                                    var price = parseFloat(FW.TRACKED_PRICES[cur].USD / 1) * numeral(newVal).value();
                                     me.price.suspendEvents();
-                                    me.price.setValue('$' + numeral(price).format('0,0.00'));
+                                    me.price.setValue(numeral(price).value());
                                     me.price.resumeEvents(true);
                                 }
                             }
@@ -288,21 +284,21 @@ Ext.define('FW.view.Send', {
             if(rec.currency==currency && rec.prefix==prefix)
                 balance = rec.amount;
         });
-        // If balance is divisible, update display format and set divisible flag on amount field
+        // If balance is divisible, update display format and precision
         if(/\./.test(balance)){
             format += '.00000000';
-            me.amount.setDivisible(true);
+            me.amount.setDecimalPrecision(8);
         } else {
-            me.amount.setDivisible(false);
+            me.amount.setDecimalPrecision(0);
         }
         me.balance = balance;
         // Set max and available amount
-        var amt = numeral(balance).format(format);
-        me.amount.setMaxValue(amt);
+        var bal = numeral(balance),
+            amt = bal.format(format);
+        me.amount.setMaxValue(bal.value());
         if(typeof FW.TRACKED_PRICES[currency] != 'undefined')
             amt += ' ($' + numeral(FW.TRACKED_PRICES[currency]['USD'] * balance).format('0,0.00') + ')';
         me.available.setValue(amt);
-
     },
 
 
@@ -373,8 +369,8 @@ Ext.define('FW.view.Send', {
                 me.currency.setValue(o.asset);
             if(o.address) 
                 me.destination.setValue(o.address);
-            if(o.amount) 
-                me.amount.setValue(o.amount);
+            if(o.amount)
+                me.amount.setValue(numeral(o.amount).value());
         }
     }
 

@@ -47,15 +47,14 @@ Ext.define('FW.view.Receive', {
                     value: 'BTC',
                     readOnly: true
                 },{
-                    xtype: 'textfield',
-                    label: 'USD',
+                    xtype: 'fw-spinnerfield',
+                    label: 'USD ($)',
                     name: 'price',
-                    value: '$0.00',
-                    component: {
-                        // Change type to tel since it shows numbers keyboard, and allows for additional chars like ,
-                        type: 'tel',
-                        disabled: false
-                    },
+                    value: 0.00,
+                    decimalPrecision: 2,
+                    minValue: 0,
+                    maxValue: 100000000.00000000,
+                    stepValue: 1,
                     listeners: {
                         // Handle detecting price changes and updating the amount
                         change: function(cmp, newVal, oldVal){
@@ -63,16 +62,12 @@ Ext.define('FW.view.Receive', {
                                 var me  = Ext.getCmp('receiveView'),
                                     cur = me.asset.getValue();
                                 if(newVal=='')
-                                    newVal = '0';
-                                // Make sure price starts with $
-                                if(newVal.substr(0,1)!='$' || !/\./.test(newVal))
-                                    cmp.setValue('$' + numeral(newVal).format('0,0.00'));
+                                    newVal = 0;
                                 // Handle updating amount
                                 if(!me.price.isDisabled() && typeof FW.TRACKED_PRICES[cur] != 'undefined'){
-                                    var amount = (parseFloat(newVal.replace('$','').replace(',','')) / FW.TRACKED_PRICES[cur].USD) * 1,
-                                        fmt    = (me.amount.divisible) ? '0,0.00000000' : '0,0';
+                                    var amount = (numeral(newVal).value() / FW.TRACKED_PRICES[cur].USD) * 1;
                                     me.amount.suspendEvents();
-                                    me.amount.setValue(numeral(amount).format(fmt));
+                                    me.amount.setValue(numeral(amount).format(me.amount.getNumberFormat()));
                                     me.amount.resumeEvents(true);
                                 }
                                 me.updateQRCode();
@@ -84,10 +79,10 @@ Ext.define('FW.view.Receive', {
                     label: 'Amount',
                     name: 'amount',
                     value: 0,
+                    decimalPrecision: 8,
                     minValue: 0,
                     maxValue: 100000000.00000000,
                     stepValue: 0.01000000,
-                    divisible: true,
                     listeners: {
                         // Handle detecting amount changes and updating the price
                         change: function(cmp, newVal, oldVal){
@@ -96,9 +91,9 @@ Ext.define('FW.view.Receive', {
                                     cur = me.asset.getValue();
                                 // Handle updating price
                                 if(!me.price.isDisabled() && typeof FW.TRACKED_PRICES[cur] != 'undefined'){
-                                    var price = parseFloat(FW.TRACKED_PRICES[cur].USD / 1) * parseFloat(newVal.replace('$','').replace(',',''));
+                                    var price = parseFloat(FW.TRACKED_PRICES[cur].USD / 1) * numeral(newVal).value();
                                     me.price.suspendEvents();
-                                    me.price.setValue('$' + numeral(price).format('0,0.00'));
+                                    me.price.setValue(numeral(price).value());
                                     me.price.resumeEvents(true);
                                 }
                                 me.updateQRCode();

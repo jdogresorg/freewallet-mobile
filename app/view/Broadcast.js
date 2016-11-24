@@ -43,7 +43,7 @@ Ext.define('FW.view.Broadcast', {
                 },{
                     label: 'Fee',
                     name: 'fee',
-                    divisible: true,
+                    decimalPrecision: 8,
                     minValue: 0,
                     maxValue: 1.00000000,
                     stepValue: 0.01000000,
