@@ -72,10 +72,17 @@ Ext.define('FW.controller.Main', {
                 me.setWalletNetwork(FW.WALLET_NETWORK);
                 me.setWalletAddress(FW.WALLET_ADDRESS, true);
                 me.showMainView();
-                // Update prices immediately, and every 10 minutes
-                var fn = function(){ me.updatePrices(true); }
-                setInterval(fn, 600000);
-                fn();
+                // Load last price info
+                var prices   = sm.getItem('prices'),
+                    tstamp   = sm.getItem('pricesUpdated'),
+                    interval = 600000; // 10 minutes 
+                if(prices)
+                    FW.TRACKED_PRICES = Ext.decode(prices);
+                // Refresh if we have no data, or it is older than interval
+                if(!tstamp || (tstamp && (parseInt(tstamp)+interval) < Date.now()))
+                    me.updatePrices(true);
+                // Update prices every 10 minutes
+                setInterval(function(){ me.updatePrices(true); }, interval);
             }
             if(FW.TOUCHID && me.isNative){
                 // Handle Touch ID authentication
@@ -887,26 +894,19 @@ Ext.define('FW.controller.Main', {
     // Handle Translating a scanned qrcode into a data object
     getScannedData: function(data){
         // console.log('getScannedData data=',data);
-        var x    = data.split(':'), 
-            uri  = x[0],
-            addr = data,
+        var addr = data,
+            re   = /^(bitcoin|counterparty):/,
             o    = { valid: false };
-        // Handle parsing in bitcoin or counterparty URI data
-        if(uri=='bitcoin'||uri=='counterparty'){
-            // Fix any callback urls by stitching the url back together
-            for (var i = 0; i < x.length; i++)
-                if(i>1)
-                    x[1] += x[i];
+        // Handle parsing in bitcoin ands counterparty URI data
+        if(re.test(data)){
             // Extract data into object
-            var y    = x[1].split('?'),
-                z    = (y[1]) ? y[1].split('&') : [],
-                addr = y[0];
-            for (var i = 0; i < z.length; i++){
-                var a = z[i].split('=');
-                o[decodeURIComponent(a[0])] = decodeURIComponent(a[1]).replace(/\+/g,' ').trim();
+            var x    = data.replace(re,'').split('?'),
+                y    = (x[1]) ? x[1].split('&') : [],
+                addr = x[0];
+            for (var i = 0; i < y.length; i++){
+                var z = y[i].split('=');
+                o[decodeURIComponent(z[0])] = decodeURIComponent(z[1]).replace(/\+/g,' ').trim();
             }
-            if(uri=='bitcoin')
-                o.asset = 'BTC';
         }
         // Handle validating that the provided address is valid
         if(addr.length>25 && CWBitcore.isValidAddress(addr)){
@@ -937,8 +937,9 @@ Ext.define('FW.controller.Main', {
         // console.log('serverCallback', url, params, method, callback);
         // Convert querystring name/value pairs to params
         if(method=='POST'){
-            var x = url.split('?'),
-                y = x[1].split('&');
+            var x = url.split('?');
+            if(x[1])
+                var y = x[1].split('&');
             url = x[0];
             Ext.each(y, function(val){
                 var z = val.split('=');
@@ -966,48 +967,62 @@ Ext.define('FW.controller.Main', {
         var me = this;
         me.scanQRCode(null, function(o){
             // console.log('generalQRCodeScan o=',o);
-            // Handle signing messages
-            if(o.action=='sign' && o.message){
-                if(o.callback){
-                    // Use given address or default to current address
-                    var addr = (o.address) ? o.address : FW.WALLET_ADDRESS.address,
-                        host = me.getUrlHostname(o.callback),
-                        key  = me.getPrivateKey(FW.WALLET_NETWORK, addr);
-                    // Only proceed if we were able to get the key for the address
-                    if(key){
-                        var sig = me.signMessage(FW.WALLET_NETWORK, addr, o.message);
-                        if(sig){
-                            // Verify with user that they want to transmit signed message to host
-                            Ext.Msg.show({
-                                message: 'Send signed message to ' + host + '?', 
-                                buttons: Ext.MessageBox.YESNO,
-                                fn: function(btn){
-                                    if(btn=='yes'){
-                                        var p = {
-                                            address: addr,
-                                            message: o.message,
-                                            signature: sig
-                                        };
-                                        // Send callback to server, we don't care if it succeeds or fails
-                                        me.serverCallback(o.callback, p, 'POST');
+            if(o.action){
+                // Handle signing messages
+                if(o.action=='sign'){
+                    if(o.callback){
+                        // Use given address or default to current address
+                        var addr = (o.address) ? o.address : FW.WALLET_ADDRESS.address,
+                            host = me.getUrlHostname(o.callback),
+                            key  = me.getPrivateKey(FW.WALLET_NETWORK, addr);
+                        // Only proceed if we were able to get the key for the address
+                        if(key){
+                            var sig = me.signMessage(FW.WALLET_NETWORK, addr, o.message);
+                            if(sig){
+                                // Verify with user that they want to transmit signed message to host
+                                Ext.Msg.show({
+                                    message: 'Send signed message to ' + host + '?', 
+                                    buttons: Ext.MessageBox.YESNO,
+                                    fn: function(btn){
+                                        if(btn=='yes'){
+                                            var p = {
+                                                address: addr,
+                                                message: o.message,
+                                                signature: sig
+                                            };
+                                            // Send callback to server, we don't care if it succeeds or fails
+                                            me.serverCallback(o.callback, p, 'POST');
+                                        }
                                     }
-                                }
-                            });
+                                });
+                            } else {
+                                Ext.Msg.alert(null,'Error while trying to sign message!');
+                            }
                         } else {
-                            Ext.Msg.alert(null,'Error while trying to sign message!');
+                            Ext.Msg.alert(null,'Unable to sign message with given address!');
                         }
                     } else {
-                        Ext.Msg.alert(null,'Unable to sign message with given address!');
+                        // Show 'Sign' tool and pass message to sign
+                        me.showTool('sign',{ message: o.message });
                     }
-                } else {
-                    // Show 'Sign' tool and pass message to sign
-                    me.showTool('sign',{ message: o.message });
                 }
-            }
-            // Handle Broadcasts
-            if(o.action=='broadcast'){
                 // Show 'Broadcast' tool and pass message to broadcast
-                me.showTool('broadcast',{ message: o.message });
+                if(o.action=='broadcast')
+                    me.showTool('broadcast',{ message: o.message });
+                // Handle Betting
+                if(o.action=='bet')
+                    Ext.Msg.alert(null,'Coming soon!');
+            } else if(o.address){
+                // Show 'Send' tool and pass forward scanned 
+                me.showTool('send', { 
+                    reset: true,
+                    address: o.address,
+                    currency: o.asset || 'BTC',
+                    amount: o.amount || ''
+                });
+            } else {
+                // Throw generic failure message if we were not able to 
+                Ext.Msg.alert(null,'Unable to perform action based on scanned QR code data!');
             }
         });
     },
@@ -1015,15 +1030,23 @@ Ext.define('FW.controller.Main', {
 
     // Handle scanning a QR code both natively, and using HTML5
     scanQRCode: function(view, callback){
-        var me = this;
+        var me = this,
+            vp = Ext.Viewport;
+        // Mask the viewport with 'Processing...' while scanning/processing the scan
+        vp.setMasked({
+            xtype: 'loadmask',
+            message: 'Processing...'
+        });
         // console.log('scanQRCode view=',view, callback);
         // Callback function run when scan has completed 
         var cb = function(data){
-            // console.log('cb data=',data);
+            console.log('cb data=',data);
             if(data.valid && view && typeof view.updateForm === 'function')
                 view.updateForm(data);
             if(typeof callback === 'function')
                 callback(data);
+            vp.setMasked(false);
+
         }
         // Handle native scanning via ZBar barcode scanner (https://github.com/tjwoon/csZBar)
         if(me.isNative){
@@ -1031,6 +1054,7 @@ Ext.define('FW.controller.Main', {
                 cb(me.getScannedData(String(data)));
             };
             var onError = function(error){
+                vp.setMasked(false);
                 console.log('error=',error);
                 // error('cancelled') If user cancelled the scan (with back button etc)
                 // error('misc error message') Misc failure
@@ -1299,7 +1323,8 @@ Ext.define('FW.controller.Main', {
 
     // Handle updating price info for various currencies/tokens from coinmarketcap.com
     updatePrices: function(refresh){
-        var me  = this;
+        var me = this,
+            sm = localStorage;
         // Define list of id:name mappings
         var ids = {
             'BCY'           : 'BITCRYSTALS',
@@ -1336,9 +1361,11 @@ Ext.define('FW.controller.Main', {
                     });
                     // console.log('FW.TRACKED_PRICES=',FW.TRACKED_PRICES)
                     // Update Balances list now that we have updated price info
-                    if(refresh){
+                    if(refresh)
                         Ext.getCmp('balancesList').refresh();
-                    }
+                    // Save info to localStorage so we can preload last known prices on reload
+                    sm.setItem('prices',Ext.encode(FW.TRACKED_PRICES));
+                    sm.setItem('pricesUpdated', Date.now());
                 }
             }
         },true);
