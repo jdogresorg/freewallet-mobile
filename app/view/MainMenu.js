@@ -49,7 +49,7 @@ Ext.define('FW.view.MainMenu', {
                 FW.app.getController('Main').showQRCodeView({ text: FW.WALLET_ADDRESS.address });
             }
         },{
-            text: 'Scan QRcode', 
+            text: 'Scan QR Code', 
             icon: 'fa-qrcode', 
             leaf: true,
             handler: function(){

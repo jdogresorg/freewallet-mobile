@@ -38,7 +38,7 @@
                     }
                 },{
                     text: 'Receive',
-                    iconCls: 'fa fa-qrcode fa-2x',
+                    iconCls: 'fa fa-smile-o fa-2x',
                     handler: function(){
                         FW.app.getController('Main').showTool('receive',{ reset: true });
                     }

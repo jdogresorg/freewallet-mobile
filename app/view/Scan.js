@@ -20,7 +20,7 @@ Ext.define('FW.view.Scan', {
             docked: 'top',
             cls: 'fw-panel',
             xtype: 'toolbar',
-            title: 'Please Scan a QRCode'
+            title: 'Please Scan QR Code'
         },{
             html: '<div id="reader" style="width:320px;height:240px"></div>'
         },{
@@ -74,21 +74,22 @@ Ext.define('FW.view.Scan', {
             console.log('reader error');        
         }
         vp.remove(me,true);
+        vp.setMasked(false);
     },
 
 
     // Handle validating any scanned data
     onScan: function(data){
-        // console.log('onScan before data=',data);
-        var me   = Ext.ComponentQuery.query('fw-scanqrcode')[0],
-            data = me.main.getScannedData(String(data));
-        // console.log('onScan after data=',data);
+        console.log('onScan data string=',data);
+        var me = Ext.ComponentQuery.query('fw-scanqrcode')[0],
+            o  = me.main.getScannedData(String(data));
+        console.log('onScan data object=',o);
         // Hide view if we detected data in scan
-        if(data.valid)
+        if(o.valid)
             me.hideView();
         // Call callback function to process scan data
         if(me.callback && typeof me.callback === 'function')
-            me.callback(data);
+            me.callback(o);
     },
 
    // Handle scanning errors

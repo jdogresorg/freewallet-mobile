@@ -78,8 +78,8 @@ Ext.application({
         'QRCode',
         'TransactionPriority',
         'Bet',
-        'Dividend'
-
+        'Dividend',
+        'Callback'
     ],
 
     icon: {

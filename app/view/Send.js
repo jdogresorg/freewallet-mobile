@@ -250,11 +250,13 @@ Ext.define('FW.view.Send', {
             me.available.reset();
             me.priority.reset();
         }
-        // Force currency, image, and balance updates
+        // Set currency and update currency field value
         var currency = (cfg.currency) ? cfg.currency : 'BTC';
-        me.updateImage(currency);
         me.currency.setValue(currency);
-        me.updateBalance(currency);
+        // Get currency value and update image and balance (do this so currency and icon always match)
+        var val = me.currency.getValue();
+        me.updateImage(val);
+        me.updateBalance(val);
         me.updateForm(cfg);
     },
 

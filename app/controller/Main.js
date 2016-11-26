@@ -181,6 +181,7 @@ Ext.define('FW.controller.Main', {
     showScanQRCodeView:   function(cfg){ this.showView(null,'FW.view.Scan',cfg); },
     showPasscodeView:     function(cfg){ this.showView('passcodeView','FW.view.Passcode', cfg); },
     showPassphraseView:   function(cfg){ this.showView('passphraseView','FW.view.Passphrase', cfg); },
+    showCallbackView:     function(cfg){ this.showView('callbackView','FW.view.Callback', cfg); },
 
     // Handle showing a specifc tool
     showTool: function(tool,cfg){
@@ -895,12 +896,13 @@ Ext.define('FW.controller.Main', {
     getScannedData: function(data){
         // console.log('getScannedData data=',data);
         var addr = data,
-            re   = /^(bitcoin|counterparty):/,
+            btc  = /^(bitcoin|counterparty):/i,
+            url  = /^(http|https):/i,
             o    = { valid: false };
         // Handle parsing in bitcoin ands counterparty URI data
-        if(re.test(data)){
+        if(btc.test(data)){
             // Extract data into object
-            var x    = data.replace(re,'').split('?'),
+            var x    = data.replace(btc,'').split('?'),
                 y    = (x[1]) ? x[1].split('&') : [],
                 addr = x[0];
             for (var i = 0; i < y.length; i++){
@@ -916,6 +918,10 @@ Ext.define('FW.controller.Main', {
             // If action is specified, assume valid
             if(o.action)
                 o.valid = true;
+            if(url.test(data)){
+                o.valid = true;
+                o.url   = data;
+            }
         }
         return o;
     },
@@ -979,22 +985,10 @@ Ext.define('FW.controller.Main', {
                         if(key){
                             var sig = me.signMessage(FW.WALLET_NETWORK, addr, o.message);
                             if(sig){
-                                // Verify with user that they want to transmit signed message to host
-                                Ext.Msg.show({
-                                    message: 'Send signed message to ' + host + '?', 
-                                    buttons: Ext.MessageBox.YESNO,
-                                    fn: function(btn){
-                                        if(btn=='yes'){
-                                            var p = {
-                                                address: addr,
-                                                message: o.message,
-                                                signature: sig
-                                            };
-                                            // Send callback to server, we don't care if it succeeds or fails
-                                            me.serverCallback(o.callback, p, 'POST');
-                                        }
-                                    }
-                                });
+                                o.address   = addr;
+                                o.signature = sig;
+                                // Confirm with user that they want to perform callback to remote server
+                                me.showCallbackView(o);
                             } else {
                                 Ext.Msg.alert(null,'Error while trying to sign message!');
                             }
@@ -1020,6 +1014,11 @@ Ext.define('FW.controller.Main', {
                     currency: o.asset || 'BTC',
                     amount: o.amount || ''
                 });
+            } else if(o.url && /^(http|https):/i.test(o.url)){
+                Ext.Msg.confirm(null,'Open url to ' + me.getUrlHostname(o.url) + '?',function(btn){
+                    if(btn=='yes')
+                        me.openUrl(o.url);
+                })
             } else {
                 // Throw generic failure message if we were not able to 
                 Ext.Msg.alert(null,'Unable to perform action based on scanned QR code data!');
@@ -1040,7 +1039,7 @@ Ext.define('FW.controller.Main', {
         // console.log('scanQRCode view=',view, callback);
         // Callback function run when scan has completed 
         var cb = function(data){
-            console.log('cb data=',data);
+            // console.log('cb data=',data);
             if(data.valid && view && typeof view.updateForm === 'function')
                 view.updateForm(data);
             if(typeof callback === 'function')

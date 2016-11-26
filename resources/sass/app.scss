@@ -63,6 +63,9 @@
 .red {
     color: red;
 }
+.green {
+    color: #009900;
+}
 .nowrap {
     white-space: nowrap;
 }
@@ -305,7 +308,8 @@
     color: red;
 }
 
-.no-rounded-edges.x-panel.x-floating .x-panel-inner {
+.no-rounded-edges.x-panel.x-floating .x-panel-inner,
+.no-rounded-edges.x-form-fieldset .x-form-fieldset-inner {
     -webkit-border-radius: 0em; 
     -moz-border-radius: 0em;
     -ms-border-radius: 0em;
@@ -335,5 +339,14 @@
     font-size: 1.33em;
 }
 
+.fw-callback-protocol {
+    font-size: 0.8em;
+    font-style: italic;
+    font-weight: bold;
+}
 
+.fw-callback-hostname {
+    font-size: 1.5em;
+    font-weight: bold;    
+}
 
