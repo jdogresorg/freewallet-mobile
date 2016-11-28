@@ -27,6 +27,16 @@
         // window.onerror = function(error){  
         //     console.log('error=',error);
         // };
+        // Stash any data that was passed at launch, then try to process it
+        function handleOpenURL(data){
+            if(data)
+                FW.LAUNCH_DATA = data;
+            setTimeout(function(){
+                var cmp = FW.app.getController('Main');
+                if(cmp)
+                    cmp.processLaunchData();
+            }, 0);
+        }
     </script>
     <!-- DO NOT INCLUDE JAVASCRIPT FILES HERE      -->
     <!-- To include any files add them to app.json -->

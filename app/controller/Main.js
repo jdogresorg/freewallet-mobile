@@ -83,6 +83,8 @@ Ext.define('FW.controller.Main', {
                     me.updatePrices(true);
                 // Update prices every 10 minutes
                 setInterval(function(){ me.updatePrices(true); }, interval);
+                // Handle processing any scanned data after 1 second
+                Ext.defer(function(){ me.processLaunchData(); }, 1000);
             }
             if(FW.TOUCHID && me.isNative){
                 // Handle Touch ID authentication
@@ -96,6 +98,19 @@ Ext.define('FW.controller.Main', {
         } else {
             // Show the welcome/setup view
             me.showWelcomeView();
+        }
+    },
+
+
+    // Handle processing any data that was passed at launch
+    processLaunchData: function(){
+        var me   = this,
+            data = FW.LAUNCH_DATA;
+        // Only proceed if we have a decrypted wallet
+        if(FW.WALLET_HEX && data){
+            var o = me.getScannedData(String(data));
+            me.processQRCodeScan(o); // Treat input as a scanned QR Code
+            FW.LAUNCH_DATA = false;  // Reset data so it is gone on next check
         }
     },
 
@@ -968,62 +983,67 @@ Ext.define('FW.controller.Main', {
     },
 
 
-    // Handle general/generic QRCode scanning and processing of results
-    generalQRCodeScan: function(){
+    // Handle processing scanned QR Codes and performing the correct action based on scan
+    processQRCodeScan: function(o){
         var me = this;
-        me.scanQRCode(null, function(o){
-            // console.log('generalQRCodeScan o=',o);
-            if(o.action){
-                // Handle signing messages
-                if(o.action=='sign'){
-                    if(o.callback){
-                        // Use given address or default to current address
-                        var addr = (o.address) ? o.address : FW.WALLET_ADDRESS.address,
-                            host = me.getUrlHostname(o.callback),
-                            key  = me.getPrivateKey(FW.WALLET_NETWORK, addr);
-                        // Only proceed if we were able to get the key for the address
-                        if(key){
-                            var sig = me.signMessage(FW.WALLET_NETWORK, addr, o.message);
-                            if(sig){
-                                o.address   = addr;
-                                o.signature = sig;
-                                // Confirm with user that they want to perform callback to remote server
-                                me.showCallbackView(o);
-                            } else {
-                                Ext.Msg.alert(null,'Error while trying to sign message!');
-                            }
+        console.log('processQRCodeScan o=',o);
+        if(o.action){
+            // Handle signing messages
+            if(o.action=='sign'){
+                if(o.callback){
+                    // Use given address or default to current address
+                    var addr = (o.address) ? o.address : FW.WALLET_ADDRESS.address,
+                        host = me.getUrlHostname(o.callback),
+                        key  = me.getPrivateKey(FW.WALLET_NETWORK, addr);
+                    // Only proceed if we were able to get the key for the address
+                    if(key){
+                        var sig = me.signMessage(FW.WALLET_NETWORK, addr, o.message);
+                        if(sig){
+                            o.address   = addr;
+                            o.signature = sig;
+                            // Confirm with user that they want to perform callback to remote server
+                            me.showCallbackView(o);
                         } else {
-                            Ext.Msg.alert(null,'Unable to sign message with given address!');
+                            Ext.Msg.alert(null,'Error while trying to sign message!');
                         }
                     } else {
-                        // Show 'Sign' tool and pass message to sign
-                        me.showTool('sign',{ message: o.message });
+                        Ext.Msg.alert(null,'Unable to sign message with given address!');
                     }
+                } else {
+                    // Show 'Sign' tool and pass message to sign
+                    me.showTool('sign',{ message: o.message });
                 }
-                // Show 'Broadcast' tool and pass message to broadcast
-                if(o.action=='broadcast')
-                    me.showTool('broadcast',{ message: o.message });
-                // Handle Betting
-                if(o.action=='bet')
-                    Ext.Msg.alert(null,'Coming soon!');
-            } else if(o.address){
-                // Show 'Send' tool and pass forward scanned 
-                me.showTool('send', { 
-                    reset: true,
-                    address: o.address,
-                    currency: o.asset || 'BTC',
-                    amount: o.amount || ''
-                });
-            } else if(o.url && /^(http|https):/i.test(o.url)){
-                Ext.Msg.confirm(null,'Open url to ' + me.getUrlHostname(o.url) + '?',function(btn){
-                    if(btn=='yes')
-                        me.openUrl(o.url);
-                })
-            } else {
-                // Throw generic failure message if we were not able to 
-                Ext.Msg.alert(null,'Unable to perform action based on scanned QR code data!');
             }
-        });
+            // Show 'Broadcast' tool and pass message to broadcast
+            if(o.action=='broadcast')
+                me.showTool('broadcast',{ message: o.message });
+            // Handle Betting
+            if(o.action=='bet')
+                Ext.Msg.alert(null,'Coming soon!');
+        } else if(o.address){
+            // Show 'Send' tool and pass forward scanned 
+            me.showTool('send', { 
+                reset: true,
+                address: o.address,
+                currency: o.asset || 'BTC',
+                amount: o.amount || ''
+            });
+        } else if(o.url && /^(http|https):/i.test(o.url)){
+            Ext.Msg.confirm(null,'Open url to ' + me.getUrlHostname(o.url) + '?',function(btn){
+                if(btn=='yes')
+                    me.openUrl(o.url);
+            })
+        } else {
+            // Throw generic failure message if we were not able to 
+            Ext.Msg.alert(null,'Unable to perform action based on scanned QR code data!');
+        }        
+    },
+
+
+    // Handle general/generic QRCode scanning and processing of results
+    generalQRCodeScan: function(data){
+        var me = this;
+        me.scanQRCode(null, Ext.bind(me.processQRCodeScan,me));
     },
 
 
