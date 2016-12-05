@@ -986,7 +986,7 @@ Ext.define('FW.controller.Main', {
     // Handle processing scanned QR Codes and performing the correct action based on scan
     processQRCodeScan: function(o){
         var me = this;
-        console.log('processQRCodeScan o=',o);
+        // console.log('processQRCodeScan o=',o);
         if(o.action){
             // Handle signing messages
             if(o.action=='sign'){

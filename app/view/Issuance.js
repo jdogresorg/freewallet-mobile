@@ -70,7 +70,8 @@ Ext.define('FW.view.Issuance', {
 
                 },{
                     name: 'description',
-                    label: 'Description'
+                    label: 'Description',
+                    maxLength: 52
                 },{
                     xtype: 'fw-spinnerfield',
                     label: 'Quantity',
@@ -176,7 +177,7 @@ Ext.define('FW.view.Issuance', {
             xcp_bal = me.main.getBalance('XCP'),
             fee_sat = me.main.getSatoshis(String(vals.feeAmount).replace(' BTC','')),
             btc_sat = me.main.getSatoshis(btc_bal),
-            qty_sat = (vals.divisible) ? me.main.getSatoshis(vals.quantity) : vals.quantity;
+            qty_sat = me.main.getSatoshis(vals.quantity);
         // Validate the issuance data and display any 
         if(vals.name==''){
             msg = 'You must enter a token name';

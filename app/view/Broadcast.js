@@ -45,9 +45,16 @@ Ext.define('FW.view.Broadcast', {
                     name: 'fee',
                     decimalPrecision: 8,
                     minValue: 0,
-                    maxValue: 1.00000000,
+                    maxValue:  0.99999999,
                     stepValue: 0.01000000,
-                    value: 0
+                    value: 0,
+                    listeners: {
+                        change: function(cmp, newVal, oldVal){
+                            var max = cmp.getMaxValue();
+                            if(newVal>max)
+                                cmp.setValue(max);
+                        }
+                    }
                 }]                
             },{
                 xtype: 'fw-transactionpriority',
@@ -157,7 +164,7 @@ Ext.define('FW.view.Broadcast', {
                     me.priority.reset();
                 }
             };
-            me.main.cpBroadcast(FW.WALLET_NETWORK, FW.WALLET_ADDRESS.address, vals.message, vals.value, vals.fee, fee_sat, cb);
+            me.main.cpBroadcast(FW.WALLET_NETWORK, FW.WALLET_ADDRESS.address, vals.message, numeral(vals.value).value(), vals.fee, fee_sat, cb);
         }
         // Confirm action with user
         Ext.Msg.confirm('Confirm Broadcast', 'Send Broadcast?', function(btn){

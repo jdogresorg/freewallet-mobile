@@ -137,10 +137,38 @@ Ext.define('FW.view.Receive', {
             me.amount.reset();
             me.asset.reset();
         }
-        if(cfg.asset)
-            me.asset.setValue(cfg.asset);
+        var asset = (cfg.asset) ? cfg.asset : 'BTC';
+        me.asset.setValue(asset);
+        me.updateAmountField(asset);
         // Handle updating the QR Code
         // me.updateQRCode();
+    },
+
+
+    // Handle updating amount field to correct settings for a given currency
+    updateAmountField: function(currency){
+        var me      = this,
+            store   = Ext.getStore('Balances'),
+            prefix  = FW.WALLET_ADDRESS.address.substr(0,5);
+            balance = 0;
+        // Find balance in store
+        store.each(function(item){
+            var rec = item.data;
+            if(rec.currency==currency && rec.prefix==prefix)
+                balance = rec.amount;
+        });
+        // Adjust amount field step/decimal precision values
+        var div  = /\./.test(balance),
+            dec  = (div) ? 8 : 0,
+            step = (div) ? 0.01 : 1;
+        me.amount.setDecimalPrecision(dec);
+        me.amount.setStepValue(step);
+        // enable/disable the field based on if we have currency conversion info
+        if(typeof FW.TRACKED_PRICES[currency] != 'undefined'){
+            me.price.enable();
+        } else {
+            me.price.disable();
+        }
     },
 
 
