@@ -27,9 +27,10 @@
         // window.onerror = function(error){  
         //     console.log('error=',error);
         // };
-        // Stash any data that was passed at launch, then try to process it
+        // Handle processing any data that is using one of our custom url schemes
         function handleOpenURL(data){
-            if(data)
+            var re = /^(bitcoin|counterparty|freewallet):/i;
+            if(data && re.test(data))
                 FW.LAUNCH_DATA = data;
             setTimeout(function(){
                 var cmp = FW.app.getController('Main');
