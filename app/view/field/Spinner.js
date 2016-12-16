@@ -10,7 +10,8 @@ Ext.define('FW.view.field.Spinner', {
     config : {
         component: {
             type: 'tel',    // Use 'tel' so we bring up simple number keyboard
-            disabled: false
+            disabled: false, 
+            readOnly: false  // Fixes issue on android that prevents editing of numbers
         },
         decimalPrecision: 0, // default to 0 (integers only)
         listeners: {
