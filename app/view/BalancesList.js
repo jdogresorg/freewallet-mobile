@@ -21,10 +21,10 @@ Ext.define('FW.view.BalancesList', {
         itemTpl: new Ext.XTemplate(
             '<div class="fw-balanceslist-item">' +
                 '<div class="fw-balanceslist-icon">' +
-                    '<img src="https://counterpartychain.io/content/images/icons/{[this.toLower(values.currency)]}.png">' + 
+                    '<img src="https://xchain.io/icon/{[this.toUpper(values.asset)]}.png">' + 
                 '</div>' +
                 '<div class="fw-balanceslist-info">' +
-                    '<div class="fw-balanceslist-currency">{currency}</div>' +
+                    '<div class="fw-balanceslist-currency">{display_name}</div>' +
                     '<div>' +
                         '<div class="fw-balanceslist-amount">{[this.numberFormat(values)]}</div>' +
                         '<div class="fw-balanceslist-price">{[this.priceFormat(values)]}</div>' +
@@ -32,21 +32,21 @@ Ext.define('FW.view.BalancesList', {
                 '</div>' +
             '</div>',
             {
-                toLower: function(val){
-                    return String(val).toLowerCase();
+                toUpper: function(val){
+                    return String(val).toUpperCase();
                 },
                 numberFormat: function(values){
                     var fmt = '0,0',
-                        amt = values.amount;
-                    if(/\./.test(amt) || values.currency=='BTC')
+                        qty = values.quantity;
+                    if(/\./.test(qty) || values.asset=='BTC')
                         fmt += '.00000000';
-                    return numeral(amt).format(fmt);
+                    return numeral(qty).format(fmt);
                 },
                 priceFormat: function(values){
-                    var str = '';
-                    if(typeof FW.TRACKED_PRICES[values.currency] != 'undefined')
-                        str = '$' + numeral(FW.TRACKED_PRICES[values.currency]['USD'] * values.amount).format('0,0.00');
-                    return str;
+                    var txt = '';
+                    if(values.estimated_value && values.estimated_value.usd!='0.00')
+                        var txt = '$' + numeral(values.estimated_value.usd).format('0,0.00');
+                    return txt;
                 }
             }
         ),
@@ -97,9 +97,12 @@ Ext.define('FW.view.BalancesList', {
             property : 'type',
             direction: 'ASC'
         },{
-            property : 'currency',
+            property : 'asset',
+            direction: 'ASC'
+        },{
+            property : 'asset_longname',
             direction: 'ASC'
         }]);
-    }
+    },
 
 });

@@ -49,7 +49,7 @@
                         xtype: 'textfield',
                         readOnly: true,
                         label: 'Name',
-                        itemId: 'currency'
+                        itemId: 'asset'
                     }]
                 },{
                     xtype: 'fieldset',
@@ -97,10 +97,13 @@
                     itemId: 'supply'
                 },{
                     label: 'USD Price',
-                    itemId: 'price'
+                    itemId: 'usd'
                 },{
                     label: 'BTC Price',
                     itemId: 'btc'
+                },{
+                    label: 'XCP Price',
+                    itemId: 'xcp'
                 },{
                     label: 'Divisible',
                     itemId: 'divisible'

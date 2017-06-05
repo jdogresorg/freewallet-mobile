@@ -40,18 +40,18 @@ Ext.define('FW.view.AddressList', {
                         cls += 'current-address';
                     return cls;
                 },
-                getBalance: function(values, currency){
+                getBalance: function(values, asset){
                     var store  = Ext.getStore('Balances'),
                         prefix = values.address.substr(0,5),
                         data   = store.data.all,
-                        amount = 0;
+                        qty    = 0;
                     // Loop through all store data and try to find balance
                     Ext.each(data, function(item){
                         var rec = item.data;
-                        if(rec.prefix==prefix && rec.currency==currency)
-                            amount = rec.amount;
+                        if(rec.prefix==prefix && rec.asset==asset)
+                            qty = rec.quantity;
                     });
-                    return numeral(amount).format('0,0.00000000');
+                    return numeral(qty).format('0,0.00000000');
 
                }
             }

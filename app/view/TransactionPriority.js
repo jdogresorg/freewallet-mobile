@@ -83,8 +83,6 @@
         me.feeType     = me.down('[name=feeType]');
         me.feeAmount   = me.down('[name=feeAmount]');
         me.callParent();
-        // Get updated miners fees from blocktrail
-        me.main.updateMinerFees();
     },
 
 

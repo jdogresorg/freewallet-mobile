@@ -1,7 +1,7 @@
 /*
  * TokenInfo.js - View
  * 
- * Handle displaying information about the token (name, supply, currency, etc).
+ * Handle displaying information about the token (name, supply, description, etc).
  */
 
  Ext.define('FW.view.TokenInfo', {
@@ -29,12 +29,13 @@
         // Now that we have added the correct view, setup some aliases to various components
         me.tb          = me.down('fw-toptoolbar');
         me.image       = me.down('[itemId=image]');
-        me.currency    = me.down('[itemId=currency]');
+        me.asset       = me.down('[itemId=asset]');
         me.balance     = me.down('[itemId=balance]');
         me.description = me.down('[itemId=description]');
         me.supply      = me.down('[itemId=supply]');
-        me.price       = me.down('[itemId=price]');
+        me.xcp         = me.down('[itemId=xcp]');
         me.btc         = me.down('[itemId=btc]');
+        me.usd         = me.down('[itemId=usd]');
         me.divisible   = me.down('[itemId=divisible]');
         me.locked      = me.down('[itemId=locked]');
         me.website     = me.down('[itemId=website]');
@@ -50,14 +51,14 @@
         me.sendBtn.on('tap',function(btn){
             me.main.showTool('send', {
                 reset: true,
-                currency: me.getData().currency
+                asset: me.getData().asset
             });
         });
         // Handle displaying current address and currency in QRCode
         me.receiveBtn.on('tap',function(btn){ 
             me.main.showTool('receive', {
                 reset: true,
-                asset: me.getData().currency
+                asset: me.getData().asset
             });
         });
         me.callParent();
@@ -84,10 +85,10 @@
             me.information.show();
         }
         // Update currency name and image
-        me.image.setSrc('https://counterpartychain.io/content/images/icons/' + data.currency.toLowerCase() + '.png');
+        me.image.setSrc('https://xchain.io/icon/' + data.asset.toUpperCase() + '.png');
         me.updateData(data);
         // Get the basic currency information
-        me.getCurrencyInfo(data);
+        me.getTokenInfo(data);
     },
 
 
@@ -98,46 +99,45 @@
         if(data.divisible)
             fmt += '.00000000';
         // Define balance
-        var bal = numeral(data.amount).format(fmt),
-            btc = 'NA';
-        // Handle determining the USD price
-        if(typeof FW.TRACKED_PRICES[data.currency] != 'undefined'){
-            var o = FW.TRACKED_PRICES[data.currency];
-            bal += ' ($' + numeral(o.USD * data.amount).format('0,0.00') + ')';
-            data.price = numeral(o.USD).format('0,0.00');
-            data.btc = numeral(o.BTC).format('0,0.00000000');
-        }
+        var bal   = numeral(data.quantity).format(fmt),
+            asset = (data.asset_longname && String(data.asset_longname).trim().length) ? data.asset_longname : data.asset;
         me.description.setValue(data.description);
-        me.currency.setValue((data.currency=='BTC') ? 'BTC (Bitcoin)' : data.currency);
+        me.asset.setValue(asset);
         me.supply.setValue(numeral(data.supply).format(fmt));
         me.divisible.setValue((data.divisible) ? 'True' : 'False');
         me.locked.setValue((data.locked) ? 'True' : 'False');
+        me.usd.setValue(numeral(data.estimated_value.usd).format('0,0.00'));
+        me.btc.setValue(numeral(data.estimated_value.btc).format('0,0.00000000'));
+        me.xcp.setValue(numeral(data.estimated_value.xcp).format('0,0.00000000'));
         me.website.setValue((data.website) ? data.website : '');
         me.issuer.setValue((data.issuer) ? data.issuer : 'NA');
         me.owner.setValue((data.owner) ? data.owner : 'NA');
         me.balance.setValue(bal);
-        me.price.setValue((data.price) ? '$' + data.price : 'NA');
-        me.btc.setValue((data.btc) ? data.btc : 'NA');
     },
 
 
     // Handle requesting basic asset information
-    getCurrencyInfo: function(data){
+    getTokenInfo: function(data){
         var me   = this;
-        // Stash raw currency value, so we can easily 
-        me.currencyValue = data.currency;
-        if(data.currency=='BTC'){
+        if(data.asset=='BTC'){
+            Ext.each(FW.NETWORK_INFO.currency_info, function(item){
+                if(item.id=='bitcoin')
+                    price_usd = item.price_usd;
+            });
+            var values = Ext.apply(data.estimated_value,{
+                usd: price_usd
+            });
             me.updateData({
-                currency: 'BTC',
-                amount: data.amount,
+                asset: 'BTC',
+                quantity: data.quantity,
                 supply: '21000000.00000000',
                 website: 'http://bitcoin.org',
                 divisible: true,
                 locked: true,
-                description: 'Bitcoin is digital money'
+                description: 'Bitcoin is digital money',
+                estimated_value: values
             });
         } else {
-            var host = (FW.WALLET_NETWORK==2) ? 'testnet.counterpartychain.io' : 'counterpartychain.io';
             // Set loading mask on panel to indicate we are loading 
             me.setMasked({
                 xtype: 'loadmask',
@@ -146,39 +146,31 @@
                 showAnimation: 'fadeIn',
                 indicator: true
             });
-            // Make request for data on currency
-            me.main.ajaxRequest({
-                url: 'https://' + host + '/api/asset/' + data.currency,
-                // Success function called when we receive a success response
-                success: function(o){
-                    if(o.success){
-                        var desc = o.description;
-                        if(me.main.isUrl(desc))
-                            o.website = desc;
-                        if(data.currency=='XCP'){
-                            o.website = 'https://counterparty.io';
-                            o.description = 'Counterparty extends Bitcoin in new and powerful ways.';                       
-                        }
-                        me.updateData(Ext.apply(o,{ 
-                            amount: data.amount,
-                            currency: data.currency
-                        }));
-                        // Detect any .json urls and request the extra data
-                        if(/.json$/.test(desc))
-                            me.getEnhancedCurrencyInfo(desc);
-                    }
-                },
-                // Callback function called on any response
-                callback: function(){
-                    me.setMasked(false);
-                }    
-            });            
+            var successCb = function(o){
+                var desc = o.description;
+                if(me.main.isUrl(desc))
+                    o.website = desc;
+                if(data.asset=='XCP'){
+                    o.website = 'https://counterparty.io';
+                    o.locked = true;
+                    o.description = 'Counterparty extends Bitcoin in new and powerful ways.';                       
+                }
+                me.updateData(Ext.apply(o,{ 
+                    quantity: data.quantity,
+                    asset: data.asset
+                }));
+                me.setMasked(false);
+                // Detect any .json urls and request the extra data
+                if(/.json$/.test(desc))
+                    me.getEnhancedAssetInfo(desc);
+            }
+            me.main.getTokenInfo(data.asset, successCb);
         }
     },
 
 
-    // Handle requesting enhanced currency information
-    getEnhancedCurrencyInfo: function(url){
+    // Handle requesting enhanced asset information
+    getEnhancedAsssetInfo: function(url){
         var me = this;
         if(!me.main.isUrl(url))
             url = 'http://' + url;

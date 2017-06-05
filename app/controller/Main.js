@@ -30,7 +30,7 @@ Ext.define('FW.controller.Main', {
         FW.WALLET_PREFIX  = sm.getItem('prefix')  || null;  // 4-char wallet hex prefix (used to quickly find addresses associated with this wallet in datastore)
         FW.WALLET_ADDRESS = sm.getItem('address') || null;  // Current wallet address info
         FW.TOUCHID        = sm.getItem('touchid') || false; // TouchID Authentication enabled (iOS 8+)
-        FW.TRACKED_PRICES = {};                             // latest price info for tracked currencies/tokens
+        FW.NETWORK_INFO   = {};                             // latest network information (price, fees, unconfirmed tx, etc)
         // Define default server/host settings
         FW.SERVER_INFO    = {
             mainnet: {
@@ -72,17 +72,17 @@ Ext.define('FW.controller.Main', {
                 me.setWalletNetwork(FW.WALLET_NETWORK);
                 me.setWalletAddress(FW.WALLET_ADDRESS, true);
                 me.showMainView();
-                // Load last price info
-                var prices   = sm.getItem('prices'),
-                    tstamp   = sm.getItem('pricesUpdated'),
+                // Load network info every 10 minutes
+                var network  = sm.getItem('networkInfo'),
+                    tstamp   = sm.getItem('networkInfoUpdated'),
                     interval = 600000; // 10 minutes 
-                if(prices)
-                    FW.TRACKED_PRICES = Ext.decode(prices);
-                // Refresh if we have no data, or it is older than interval
+                if(network)
+                    FW.NETWORK_INFO = Ext.decode(network);
+                // Refresh if we have no network data, or it is older than interval
                 if(!tstamp || (tstamp && (parseInt(tstamp)+interval) < Date.now()))
-                    me.updatePrices(true);
+                    me.updateNetworkInfo(true);
                 // Update prices every 10 minutes
-                setInterval(function(){ me.updatePrices(true); }, interval);
+                setInterval(function(){ me.updateNetworkInfo(true); }, interval);
                 // Handle processing any scanned data after 1 second
                 Ext.defer(function(){ me.processLaunchData(); }, 1000);
             }
@@ -475,14 +475,26 @@ Ext.define('FW.controller.Main', {
             prefix = addr.substr(0,5),
             store  = Ext.getStore('Balances'),
             hostA  = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
-            hostB  = (FW.WALLET_NETWORK==2) ? 'testnet.counterpartychain.io' : 'counterpartychain.io';
+            hostB  = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
         // Get BTC balance
         me.ajaxRequest({
             url: 'https://' + hostA + '/api/v1/address/info/' + address,
             success: function(o){
                 if(o.data){
-                    var balance = (o.data.balance) ? numeral(o.data.balance).format('0.00000000') : '0.00000000';
-                    me.updateAddressBalance(address, 1, 'BTC', balance);
+                    var quantity  = (o.data.balance) ? numeral(o.data.balance).format('0.00000000') : '0.00000000',
+                        price_btc = 0;
+                    Ext.each(FW.NETWORK_INFO.currency_info, function(item){
+                        if(item.id=='bitcoin')
+                            price_usd = item.price_usd;
+                        if(item.id=='counterparty')
+                            price_btc = item.price_btc;
+                    });
+                    var values = { 
+                        usd: numeral(price_usd * quantity).format('0.00000000'),
+                        btc: '1.00000000',
+                        xcp: numeral(1 / price_btc).format('0.00000000')
+                    };
+                    me.updateAddressBalance(address, 1, 'BTC','', quantity, values);
                     me.saveStore('Balances');
                 }
             }
@@ -494,12 +506,12 @@ Ext.define('FW.controller.Main', {
                 if(o.data){
                     Ext.each(o.data, function(item){
                         var type = (item.asset=='XCP') ? 1 : 2;
-                        me.updateAddressBalance(address, type, item.asset, item.amount);
+                        me.updateAddressBalance(address, type, item.asset, item.asset_longname, item.quantity, item.estimated_value);
                     });
                 } else {
                     // Show 0.00000000 for XCP balance if we have none (prevent display on iOS)
                     if(!(me.isNative && Ext.os.name=='iOS'))
-                        me.updateAddressBalance(address, 1, 'XCP', '0.00000000');
+                        me.updateAddressBalance(address, 1, 'XCP', '', '0.00000000');
                 }
                 me.saveStore('Balances');
                 if(callback)
@@ -507,61 +519,6 @@ Ext.define('FW.controller.Main', {
             }
         }, true);            
     },
-
-
-    // Handle getting address balance information
-    getAssetInfo: function(address, callback){
-        var me     = this,
-            addr   = (address) ? address : FW.WALLET_ADDRESS,
-            prefix = addr.substr(0,5),
-            store  = Ext.getStore('Balances'),
-            hostA  = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
-            hostB  = (FW.WALLET_NETWORK==2) ? 'testnet.counterpartychain.io' : 'counterpartychain.io';
-        // Get BTC balance
-        me.ajaxRequest({
-            url: 'https://' + hostA + '/api/v1/address/info/' + address,
-            success: function(o){
-                if(o.data){
-                    var balance = (o.data.balance) ? numeral(o.data.balance).format('0.00000000') : '0.00000000';
-                    me.updateAddressBalance(address, 1, 'BTC', balance);
-                    me.saveStore('Balances');
-                }
-            }
-        });
-        // Get Asset balances
-        me.ajaxRequest({
-            url: 'https://' + hostB + '/api/balances/' + address,
-            success: function(o){
-                if(o.data){
-                    Ext.each(o.data, function(item){
-                        var type = (item.asset=='XCP') ? 1 : 2;
-                        me.updateAddressBalance(address, type, item.asset, item.amount);
-                    });
-                } else {
-                    me.updateAddressBalance(address, 1, 'XCP', '0.00000000');
-                }
-                me.saveStore('Balances');
-                if(callback)
-                    callback();
-            }
-        }, true);
-    },    
-
-
-    // Handle looking up info on current miners fees using blocktrail.com API
-    updateMinerFees: function(){
-        var me = this;
-        me.ajaxRequest({
-            url: 'https://api.blocktrail.com/v1/BTC/fee-per-kb?api_key=5039e742443dd56c1f249b10e51e11392dfd37a2',
-            success: function(o){
-                FW.MINER_FEES = Ext.apply(FW.MINER_FEES,{
-                    medium: o.low_priority,
-                    fast: o.optimal
-                });
-            }
-        });
-    },
-
 
     // Handle saving a datastore to disk
     saveStore: function(id){
@@ -572,18 +529,21 @@ Ext.define('FW.controller.Main', {
 
 
     // Handle creating/updating address balance records in datastore
-    updateAddressBalance: function(address, type, currency, amount){
-        // console.log('updateAddressBalance address, type, currency, amount=',address, type, currency, amount);
+    updateAddressBalance: function(address, type, asset, asset_longname, quantity, estimated_value){
+        // console.log('updateAddressBalance address, type, asset, asset_longname, quantity, estimated_value=',address, type, asset, asset_longname, quantity, estimated_value);
         var me     = this,
             addr   = (address) ? address : FW.WALLET_ADDRESS,
             prefix = addr.substr(0,5),
             store  = Ext.getStore('Balances');
             record = store.add({
-                id: prefix + '-' + currency,
+                id: prefix + '-' + asset,
                 type: type,
                 prefix: prefix,
-                currency: currency,
-                amount: amount
+                asset: asset,
+                asset_longname: asset_longname,
+                display_name: (asset_longname!='') ? asset_longname : asset,
+                quantity: quantity,
+                estimated_value: estimated_value
             });
         // Mark record as dirty, so we save it to disk on the next sync
         record[0].setDirty();
@@ -1065,7 +1025,6 @@ Ext.define('FW.controller.Main', {
             if(typeof callback === 'function')
                 callback(data);
             vp.setMasked(false);
-
         }
         // Handle native scanning via ZBar barcode scanner (https://github.com/tjwoon/csZBar)
         if(me.isNative){
@@ -1289,8 +1248,8 @@ Ext.define('FW.controller.Main', {
             prefix   = FW.WALLET_ADDRESS.address.substr(0,5);
         balances.each(function(item){
             var rec = item.data;
-            if(rec.prefix==prefix && rec.currency==asset){
-                balance = rec.amount;
+            if(rec.prefix==prefix && rec.asset==asset){
+                balance = rec.quantity;
                 return false;
             }
         });
@@ -1339,55 +1298,40 @@ Ext.define('FW.controller.Main', {
         },true);
     },
 
-
-    // Handle updating price info for various currencies/tokens from coinmarketcap.com
-    updatePrices: function(refresh){
+    // Handle updating misc network info (currency, fee, network info)
+    updateNetworkInfo: function(refresh){
         var me = this,
             sm = localStorage;
-        // Define list of id:name mappings
-        var ids = {
-            'BCY'           : 'BITCRYSTALS',
-            'BTC'           : null,
-            'FLDC'          : null,
-            'GEMZ'          : null,
-            'HMC'           : 'HOMMALICOIN',
-            'HOR'           : 'HORIEMONCARD',
-            'LTBC'          : 'LTBCOIN',
-            'SATOSHICARD'   : null,
-            'SCOT'          : 'SCOTCOIN',
-            'SJCX'          : null,
-            'SWARM'         : null,
-            'ZAIF'          : null,
-            'XCP'           : null,
-            'XTC'           : 'TILECOINX',
-            'WS'            : 'WOODSHARES'
-        };
-        // Request current pricing info from coinmarketcap.com
         me.ajaxRequest({
-            url: 'https://api.coinmarketcap.com/v1/ticker/',
+            url: 'https://xchain.io/api/network',
             method: 'GET',
             success: function(o){
-                if(o && o.length){
-                    Ext.each(o, function(item){
-                        // console.log('item=',item);
-                        if(typeof ids[item.symbol] != 'undefined'){
-                            var key = (ids[item.symbol] == null) ? item.symbol : ids[item.symbol];
-                            FW.TRACKED_PRICES[key] = {
-                                'USD': item.price_usd,
-                                'BTC': item.price_btc
-                            }
-                        }
-                    });
-                    // console.log('FW.TRACKED_PRICES=',FW.TRACKED_PRICES)
+                if(o && o.currency_info){
+                    FW.NETWORK_INFO = o;
+                    // Save info to localStorage so we can preload last known prices on reload
+                    sm.setItem('networkInfo',Ext.encode(o));
+                    sm.setItem('networkInfoUpdated', Date.now());
                     // Update Balances list now that we have updated price info
                     if(refresh)
                         Ext.getCmp('balancesList').refresh();
-                    // Save info to localStorage so we can preload last known prices on reload
-                    sm.setItem('prices',Ext.encode(FW.TRACKED_PRICES));
-                    sm.setItem('pricesUpdated', Date.now());
                 }
             }
         },true);
+    },
+
+
+    // Handle requesting information on a given token
+    getTokenInfo: function(asset, callback){
+        var me   = this,
+            host = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
+        me.ajaxRequest({
+            url: 'https://' + host + '/api/asset/' + asset,
+            // Success function called when we receive a success response
+            success: function(o){
+                if(typeof callback === 'function')
+                    callback(o);
+            }
+        });
     },
 
 

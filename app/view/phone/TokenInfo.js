@@ -1,7 +1,7 @@
 /*
  * TokenInfo.js - View
  * 
- * Display info about specific token or currency on phone
+ * Display info about specific token on phone
  */
  Ext.define('FW.view.phone.TokenInfo', {
     extend: 'Ext.Container',
@@ -50,7 +50,7 @@
                         xtype: 'textfield',
                         readOnly: true,
                         label: 'Name',
-                        itemId: 'currency',
+                        itemId: 'asset',
                         value: ''
                     }]
                 }]
@@ -92,10 +92,13 @@
                     itemId: 'supply'
                 },{
                     label: 'USD Price',
-                    itemId: 'price'
+                    itemId: 'usd'
                 },{
                     label: 'BTC Price',
                     itemId: 'btc'
+                },{
+                    label: 'XCP Price',
+                    itemId: 'xcp'
                 },{
                     label: 'Divisible',
                     itemId: 'divisible'

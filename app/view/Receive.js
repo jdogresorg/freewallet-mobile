@@ -64,8 +64,14 @@ Ext.define('FW.view.Receive', {
                                 if(newVal=='')
                                     newVal = 0;
                                 // Handle updating amount
-                                if(!me.price.isDisabled() && typeof FW.TRACKED_PRICES[cur] != 'undefined'){
-                                    var amount = (numeral(newVal).value() / FW.TRACKED_PRICES[cur].USD) * 1;
+                                if(!me.price.isDisabled() && me.tokenInfo.estimated_value.btc!='0.00000000'){
+                                    Ext.each(FW.NETWORK_INFO.currency_info, function(item){
+                                        if(item.id=='bitcoin')
+                                            price_usd = item.price_usd;
+                                    });
+                                    // Calculate amount via ((quantity_usd / btc_price_usd) / asset_btc)
+                                    // We do this because it is more accurate than using the asset USD value
+                                    var amount = ((numeral(newVal).value() / price_usd) / me.tokenInfo.estimated_value.btc);
                                     me.amount.suspendEvents();
                                     me.amount.setValue(numeral(amount).format(me.amount.getNumberFormat()));
                                     me.amount.resumeEvents(true);
@@ -90,8 +96,14 @@ Ext.define('FW.view.Receive', {
                                 var me  = Ext.getCmp('receiveView'),
                                     cur = me.asset.getValue();
                                 // Handle updating price
-                                if(!me.price.isDisabled() && typeof FW.TRACKED_PRICES[cur] != 'undefined'){
-                                    var price = parseFloat(FW.TRACKED_PRICES[cur].USD / 1) * numeral(newVal).value();
+                                if(!me.price.isDisabled() && me.tokenInfo.estimated_value.btc!='0.00000000'){
+                                    Ext.each(FW.NETWORK_INFO.currency_info, function(item){
+                                        if(item.id=='bitcoin')
+                                            price_usd = item.price_usd;
+                                    });
+                                    // Calculate price via ((asset_btc_price * quantity) * current_btc_price)
+                                    // We do this because it is more accurate than using the asset USD value
+                                    var price = (me.tokenInfo.estimated_value.btc *  numeral(newVal).value()) * price_usd;
                                     me.price.suspendEvents();
                                     me.price.setValue(numeral(price).value());
                                     me.price.resumeEvents(true);
@@ -123,6 +135,7 @@ Ext.define('FW.view.Receive', {
 
     // Handle updating the view with passed config info
     updateView: function(cfg){
+        console.log('updateView cfg=',cfg);
         var me = this;
         // Back button
         if(cfg.back){
@@ -139,14 +152,45 @@ Ext.define('FW.view.Receive', {
         }
         var asset = (cfg.asset) ? cfg.asset : 'BTC';
         me.asset.setValue(asset);
-        me.updateAmountField(asset);
+        me.getTokenInfo(asset);
         // Handle updating the QR Code
         // me.updateQRCode();
     },
 
+    // Handle getting information on a specific token
+    getTokenInfo: function(asset){
+        var me = this;
+        if(asset=='BTC'){
+            Ext.each(FW.NETWORK_INFO.currency_info, function(item){
+                if(item.id=='bitcoin')
+                    price_usd = item.price_usd;
+                if(item.id=='counterparty')
+                    price_btc = item.price_btc;
+            });
+            Ext.each(FW.NETWORK_INFO.currency_info, function(item){
+                if(item.id=='bitcoin')
+                    price_usd = item.price_usd;
+            });
+            me.tokenInfo = {
+                estimated_value : {
+                    btc: 1.00000000,
+                    usd: price_usd,
+                    xcp: numeral(1 / price_btc).format('0.00000000')
+                }
+            };
+            me.updateAmountField(asset);
+        } else {
+            me.main.getTokenInfo(asset, function(o){ 
+                me.tokenInfo = o; 
+                if(String(o.asset_longname).trim().length)
+                    me.asset.setValue(o.asset_longname);
+                me.updateAmountField(asset);
+            });
+        }
+    },
 
     // Handle updating amount field to correct settings for a given currency
-    updateAmountField: function(currency){
+    updateAmountField: function(asset){
         var me      = this,
             store   = Ext.getStore('Balances'),
             prefix  = FW.WALLET_ADDRESS.address.substr(0,5);
@@ -154,8 +198,8 @@ Ext.define('FW.view.Receive', {
         // Find balance in store
         store.each(function(item){
             var rec = item.data;
-            if(rec.currency==currency && rec.prefix==prefix)
-                balance = rec.amount;
+            if(rec.asset==asset && rec.prefix==prefix)
+                balance = rec.quantity;
         });
         // Adjust amount field step/decimal precision values
         var div  = /\./.test(balance),
@@ -163,8 +207,8 @@ Ext.define('FW.view.Receive', {
             step = (div) ? 0.01 : 1;
         me.amount.setDecimalPrecision(dec);
         me.amount.setStepValue(step);
-        // enable/disable the field based on if we have currency conversion info
-        if(typeof FW.TRACKED_PRICES[currency] != 'undefined'){
+        // enable/disable the field based on if the asset has any known value
+        if(me.tokenInfo.estimated_value.btc!='0.00000000'){
             me.price.enable();
         } else {
             me.price.disable();
