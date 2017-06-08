@@ -49,8 +49,8 @@
                         labelAlign: 'top',
                         xtype: 'textfield',
                         readOnly: true,
-                        label: 'Currency Name',
-                        itemId: 'currency',
+                        label: 'Name',
+                        itemId: 'asset',
                         value: ''
                     }]
                 }]
@@ -75,14 +75,20 @@
                     label: 'Destination',
                     itemId: 'destination'
                 },{
-                    label: 'Amount',
-                    itemId: 'amount'
+                    label: 'Quantity',
+                    itemId: 'quantity'
                 },{
                     label: 'Description',
                     itemId: 'description'
                 },{
                     label: 'Divisible',
                     itemId: 'divisible'
+                },{
+                    label: 'Buying',
+                    itemId: 'buying'
+                },{
+                    label: 'Selling',
+                    itemId: 'selling'
                 },{
                     label: 'Locked',
                     itemId: 'locked'
@@ -93,8 +99,10 @@
                     label: 'Fee Paid',
                     itemId: 'feePaid'
                 },{
+                    xtype: 'fw-actionfield',
                     label: 'TX Hash',
-                    itemId: 'hash'
+                    itemId: 'hash',
+                    iconCls: 'fa fa-globe'
                 },{
                     label: 'Block #',
                     itemId: 'block'

@@ -29,10 +29,12 @@
         // Now that we have added the correct view, setup some aliases to various components
         me.tb          = me.down('fw-toptoolbar');
         me.image       = me.down('[itemId=image]');
-        me.currency    = me.down('[itemId=currency]');
+        me.asset       = me.down('[itemId=asset]');
         me.type        = me.down('[itemId=type]');
-        me.amount      = me.down('[itemId=amount]');
+        me.quantity    = me.down('[itemId=quantity]');
         me.source      = me.down('[itemId=source]');
+        me.buying      = me.down('[itemId=buying]');
+        me.selling     = me.down('[itemId=selling]');
         me.destination = me.down('[itemId=destination]');
         me.hash        = me.down('[itemId=hash]');
         me.block       = me.down('[itemId=block]');
@@ -62,6 +64,18 @@
                 cmp.setHeight(w);
             }
         });
+        // Setup tap listener on transaction hash field to send taps to xchain.io
+        me.hash.btn.on('tap', function(cmp){
+            var val   = me.hash.getValue(),
+                net   = (FW.WALLET_NETWORK==2) ? 'tBTC' : 'BTC',
+                host  = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io',
+                asset = me.asset.getValue();
+            if(asset=='BTC')
+                url  = 'https://blocktrail.com/' + net + '/tx/' + val;
+            else 
+                url  = 'https://' + host + '/tx/' + val;
+            me.main.openUrl(url);
+        });        
     },
 
 
@@ -77,14 +91,14 @@
         } else {
             me.tb.backBtn.hide();
         }
-        // Handle hiding placeholder and showing currency information
+        // Handle hiding placeholder and showing asset information
         if(me.placeholder){
             me.placeholder.hide();
             me.information.show();
         }
         // Hide most everything by default
         me.iconholder.hide();
-        me.amount.hide();
+        me.quantity.hide();
         me.destination.hide();
         me.message.hide();
         me.value.hide();
@@ -94,21 +108,26 @@
         me.transfer.hide();
         me.feePaid.hide();
         me.issuer.hide();
+        me.buying.hide();
+        me.selling.hide();
         // Handle Sends
-        if(data.type==1){
-            me.image.setSrc('https://counterpartychain.io/content/images/icons/' + data.currency.toLowerCase() + '.png');
+        if(data.type=='send'){
+            me.image.setSrc('https://xchain.io/icon/' + data.asset.toUpperCase() + '.png');
             me.iconholder.show();
-            me.amount.show();
+            me.quantity.show();
             me.destination.show();
-        } else if(data.type==2){
+        } else if(data.type=='order'){
+            me.buying.show();
+            me.selling.show();
+        } else if(data.type=='broadcast'){
             // Handle Broadcasts
             me.message.show();
             me.value.show();
-        } else if(data.type==3){
+        } else if(data.type=='issuance'){
             // Handle Issuances
-            me.image.setSrc('https://counterpartychain.io/content/images/icons/' + data.currency.toLowerCase() + '.png');
+            me.image.setSrc('https://xchain.io/icon/' + data.asset.toUpperCase() + '.png');
             me.iconholder.show();
-            me.amount.show();
+            me.quantity.show();
             me.description.show();
             me.divisible.show();
             me.locked.show();
@@ -118,7 +137,7 @@
         }
         // Hide miners fees for everything except BTC for now
         // Come back at some point and add code to determine miners fees WITHOUT having to make an extra API call
-        if(data.currency=='BTC'){
+        if(data.asset=='BTC'){
             me.fee.show();
         } else {
             me.fee.hide();
@@ -130,17 +149,27 @@
 
     // Handle updating view fields
     updateData: function(data){
+        // console.log('updateData data=',data);
         var me    = this,
-            fmt   = (/\./.test(data.amount)||data.currency=='BTC') ? '0,0.00000000' : '0,0',
-            time  = (data.time) ? Ext.Date.format(new Date(parseInt(data.time + '000')),'m-d-Y H:i:s') : '',
-            block = (data.block) ? numeral(data.block).format('0,0') : '',
-            amount = (data.amount) ? data.amount.replace('-','') : 0,
-            status = (data.time) ? ((data.status) ? data.status : 'Valid') : 'Pending',
+            fmt   = (/\./.test(data.quantity)||data.asset=='BTC') ? '0,0.00000000' : '0,0',
+            time  = (data.timestamp) ? Ext.Date.format(new Date(parseInt(data.timestamp + '000')),'m-d-Y H:i:s') : '',
+            block = (data.block_index) ? numeral(data.block_index).format('0,0') : '',
+            qty   = (data.quantity) ? data.quantity.replace('-','') : 0,
+            status = (data.timestamp) ? ((data.status) ? data.status : 'Valid') : 'Pending',
             type   = (typeof data.type === 'string') ? data.type : 'Send';
-            fee    = (data.fee) ? data.fee : 'NA';
-        me.currency.setValue(data.currency);    
+            fee    = (data.fee) ? data.fee : 'NA',
+            asset  = (data.asset_longname && data.asset_longname!='') ? data.asset_longname : data.asset;
+        if(type=='Order'){
+            var buying  = (data.get_asset_longname!='') ? data.get_asset_longname : data.get_asset,
+                selling = (data.give_asset_longname!='') ? data.give_asset_longname : data.give_asset,
+                fmtA    = (/\./.test(data.get_quantity)) ? '0,0.00000000' : '0,0',
+                fmtB    = (/\./.test(data.give_quantity)) ? '0,0.00000000' : '0,0';
+            me.buying.setValue(numeral(data.get_quantity).format(fmtA) + ' ' + buying);
+            me.selling.setValue(numeral(data.give_quantity).format(fmtB) + ' ' + selling);
+        }
+        me.asset.setValue(asset);    
         me.type.setValue(type);
-        me.amount.setValue(numeral(amount).format(fmt));
+        me.quantity.setValue(numeral(qty).format(fmt));
         me.source.setValue(data.source);
         me.destination.setValue(data.destination);
         me.hash.setValue(data.hash);
@@ -163,7 +192,7 @@
     getTransactionInfo: function(data){
         var me    = this,
             hostA = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
-            hostB = (FW.WALLET_NETWORK==2) ? 'testnet.counterpartychain.io' : 'counterpartychain.io';
+            hostB = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
         // Set loading mask on panel to indicate we are loading 
         me.setMasked({
             xtype: 'loadmask',
@@ -173,7 +202,7 @@
             indicator: true
         });
         // Get BTC transaction info
-        if(data.currency=='BTC'){
+        if(data.asset=='BTC'){
             me.main.ajaxRequest({
                 url: 'https://' + hostA + '/api/v1/tx/info/' + data.hash,
                 success: function(o){
@@ -189,21 +218,22 @@
                             }
                         });
                         // Handle subtracting miners fee from sent amount
-                        var amt = data.amount;
-                        if(/\-/.test(data.amount)){
-                            amt = me.main.getSatoshis(Math.abs(data.amount)) - me.main.getSatoshis(o.data.fee),
-                            amt = numeral(amt).multiply(0.00000001);
-                        }
+                        // console.log('data=',data);
+                        var amt = data.quantity;
+                        // if(/\-/.test(data.quantity)){
+                        //     amt = me.main.getSatoshis(Math.abs(data.quantity)) - me.main.getSatoshis(o.data.fee),
+                        //     amt = numeral(amt).multiply(0.00000001);
+                        // }
                         str = numeral(amt).format('0,0.00000000');
                         me.updateData({ 
                             type: 'Send',
-                            currency: 'BTC',
-                            amount: str,
+                            asset: 'BTC',
+                            quantity: str,
                             hash: data.hash,
                             source: src,
                             destination: dst,
-                            block: o.data.block,
-                            time: data.time,
+                            block_index: o.data.block,
+                            timestamp: data.time,
                             fee: o.data.fee
                         });
                     }
@@ -217,17 +247,18 @@
             // console.log('data=',data);
             // Handle requesting transaction info from counterpartychain.io API
             me.main.ajaxRequest({
-                url: 'https://' + hostB + '/api/transaction/' + data.hash,
+                url: 'https://' + hostB + '/api/tx/' + data.hash,
                 // Success function called when we receive a success response
                 success: function(o){
-                    if(o.success){
+                    if(!o.error){
                         var fee = (data.fee=='NA') ? data.fee : numeral(String(data.fee).replace('+','').replace('-','')).format('0.00000000');
                         me.updateData(Ext.apply(o,{ 
-                            currency: o.asset,
-                            amount: o.quantity,
+                            asset: o.asset,
+                            quantity: o.quantity,
                             hash: data.hash,
                             message: o.text,
                             value: o.value,
+                            type: o.tx_type,
                             feePaid: o.fee + ' XCP',
                             transfer: (o.transfer) ? 'True' : 'False',
                             locked: (o.locked) ? 'True' : 'False',

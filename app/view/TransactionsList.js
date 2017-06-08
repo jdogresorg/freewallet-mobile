@@ -25,28 +25,23 @@ Ext.define('FW.view.TransactionsList', {
                     '{[this.getIcon(values)]}' +
                 '</div>' +
                 '<div class="fw-transactionslist-info">' +
-                    '<div class="fw-transactionslist-amount">' +
-                        '<tpl if="type == 1">' +
-                            '{[this.getAmount(values)]}' +
-                        '<tpl elseif="type == 2">' +
-                            'Counterparty Broadcast' +
-                        '<tpl elseif="type == 3">' +
-                            'Counterparty Issuance' +
-                        '</tpl>' +
-                    '</div>' +
-                    '<div class="fw-transactionslist-currency">{currency}</div>' +
+                    '<div class="fw-transactionslist-amount">{[this.getDescription(values)]}</div>' +
+                    '<div class="fw-transactionslist-currency">{asset}</div>' +
                     '<div class="fw-transactionslist-timestamp">{[this.getTimestamp(values.time)]}</div>' +
                 '</div>' +
             '</div>',
             {
                 getIcon: function(values){
-                    var src = 'resources/images/icons/btc.png';
-                    if(values.type==2){
+                    var type = values.type,
+                        src  = 'resources/images/icons/btc.png';
+                    if(type=='bet'){
+                        src = 'resources/images/icons/xcp.png';
+                    } else if(type=='broadcast'){
                         src = 'resources/images/icons/broadcast.png';
-                    } else if(values.type==3){
-                        src = 'resources/images/icons/issuance.png';
-                    } else if(values.type==1 && values.currency!='BTC'){
-                        src = 'https://counterpartychain.io/content/images/icons/'  + String(values.currency).toLowerCase() + '.png';
+                    } else if(type=='dividend'){
+                        src = 'resources/images/icons/dividend.png';
+                    } else if((type=='send'||type=='order'||type=='issuance') && values.asset!='BTC'){
+                        src = 'https://xchain.io/icon/'  + String(values.asset).toUpperCase() + '.png';
                     }
                     icon = '<img src="' + src + '"/>';
                     return icon;
@@ -55,21 +50,40 @@ Ext.define('FW.view.TransactionsList', {
                 toLower: function(val){
                     return String(val).toLowerCase();
                 },
-                getAmount: function(values){
-                    var str = 'Received ',
-                        fmt = '0,0',
-                        amt = String(values.amount).replace('-','');
-                    if(values.type==1 && /\-/.test(values.amount))
-                        str = 'Sent ';
-                    if(/\./.test(amt) || values.currency=='BTC')
-                        fmt += '.00000000';
-                    str += numeral(amt).format(fmt);
+                getDescription: function(values){
+                    var str  = '',
+                        fmt  = '0,0',
+                        type = values.type,
+                        amt  = String(values.quantity).replace('-','');
+                    if(type=='send'){
+                        str = (/\-/.test(values.quantity)) ? 'Sent ' : 'Received ';
+                    } else if(type=='bet'){
+                        str = 'Bet ';
+                    } else if(type=='broadcast'){
+                        str = 'Counterparty Broadcast';
+                    } else if(type=='burn'){
+                        str = 'Burned ';
+                    } else if(type=='dividend'){
+                        str = 'Paid Dividend on ';
+                    } else if(type=='issuance'){
+                        str = 'Counterparty Issuance';
+                    } else if(type=='order'){
+                        str = 'Order - Buy ';
+                    }
+                    if(type=='send'||type=='bet'||type=='burn'||type=='order'){
+                        if(/\./.test(amt) || values.asset=='BTC')
+                            fmt += '.00000000';
+                        str += numeral(amt).format(fmt);
+                    }
                     return str;
                 },
                 getClasses: function(values){
-                    var cls = 'fw-transactionslist-item ';
-                    if(values.type==1)
-                        cls += (/\-/.test(values.amount)) ? ' fw-transactionslist-sent' : ' fw-transactionslist-received';
+                    var type = values.type,
+                        cls  = 'fw-transactionslist-item ';
+                    if(type=='send')
+                        cls += (/\-/.test(values.quantity)) ? ' fw-transactionslist-sent' : ' fw-transactionslist-received';
+                    if(type=='bet'||type=='burn')
+                        cls += ' fw-transactionslist-sent';
                     return cls;
                 },
                 getTimestamp: function(tstamp){

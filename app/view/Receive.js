@@ -135,7 +135,7 @@ Ext.define('FW.view.Receive', {
 
     // Handle updating the view with passed config info
     updateView: function(cfg){
-        console.log('updateView cfg=',cfg);
+        // console.log('updateView cfg=',cfg);
         var me = this;
         // Back button
         if(cfg.back){

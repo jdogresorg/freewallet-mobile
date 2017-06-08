@@ -672,92 +672,79 @@ Ext.define('FW.controller.Main', {
 
     // Handle getting address history information
     getAddressHistory: function(address, callback){
-        var me=this;
+        var me = this;
         // Define callback function to call after getting BTC transaction history
-        var cb = function(){ me.getCounterpartyTransactionHistory(address, callback); }
+        // var cb = function(){ me.getCounterpartyTransactionHistory(address, callback); }
         // Handle getting Bitcoin transaction data
-        me.getTransactionHistory(address, cb);
+        me.getTransactionHistory(address, callback);
     },
 
 
     // Handle getting Bitcoin transaction history
-    getTransactionHistory: function(address, cb){
-        var me   = this,
-            host = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io';
-        // Get BTC balance
+    getTransactionHistory: function(address, callback){
+        var me    = this,
+            hostA = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
+            hostB = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io',
+            types = ['bets','broadcasts','burns','dividends','issuances','orders','sends'];
+        // Get BTC transaction history
         me.ajaxRequest({
-            url: 'https://' + host + '/api/v1/address/txs/' + address,
+            url: 'https://' + hostA + '/api/v1/address/txs/' + address,
             success: function(o){
                 if(o.data && o.data.txs){
                     Ext.each(o.data.txs, function(item,idx){
                         // Only pay attention to the last 100 transactions
                         if(idx<99){
                             var time = moment(item.time_utc,["YYYY-MM-DDTH:m:s"]).unix();
-                            me.updateTransactionHistory(address, item.tx, 1, 'BTC', item.amount, time);
+                            me.updateTransactionHistory(address, item.tx, 'send', 'BTC', null, item.amount, time);
                         }
                     });
                     me.saveStore('Transactions');
-                    // If callback function is given, use it
-                    if(cb)
-                        cb();
                 }
-            }
-        });
-    },
-
-
-    // Handle getting counterparty transaction history
-    getCounterpartyTransactionHistory: function(address, callback){
-        var me   = this,
-            host = (FW.WALLET_NETWORK==2) ? 'testnet.counterpartychain.io' : 'counterpartychain.io';
-        // Get Counterparty sends
-        me.ajaxRequest({
-            url: 'https://' + host + '/api/sends/' + address,
-            success: function(o){
-                if(o.data){
-                    Ext.each(o.data, function(item){
-                        me.updateTransactionHistory(address, item.tx_hash, 1, item.asset, item.quantity, item.time);
-                    });
-                    me.saveStore('Transactions');
-                }
-            }
-        });         
-        // Get Counterparty Broadcasts
-        me.ajaxRequest({
-            url: 'https://' + host + '/api/broadcasts/' + address,
-            success: function(o){
-                if(o.data){
-                    Ext.each(o.data, function(item){
-                        me.updateTransactionHistory(address, item.tx_hash, 2, null, null, item.time);
-                    });
-                    me.saveStore('Transactions');
-                }
-            }
-        });
-        // Get Counterparty Issuances
-        me.ajaxRequest({
-            url: 'https://' + host + '/api/issuances/' + address,
-            success: function(o){
-                if(o.data){
-                    Ext.each(o.data, function(item){
-                        me.updateTransactionHistory(address, item.tx_id, 3, item.asset, item.quantity, item.time);
-                    });
-                    me.saveStore('Transactions');
-                }
+                // Handle processing callback now
                 if(callback)
                     callback();
-
             }
-        }, true);     
+        });
+        // Loop through transaction types and get latest transactions
+        Ext.each(types, function(type){
+            me.ajaxRequest({
+                url: 'https://' + hostB + '/api/' + type + '/' + address,
+                success: function(o){
+                    if(o.data){
+                        type = String(type).substring(0,type.length-1);
+                        Ext.each(o.data, function(item){
+                            console.log('item=',item);
+                            var asset    = item.asset,
+                                quantity = item.quantity;
+                            if(type=='bet'){
+                                asset    = 'XCP';
+                                quantity = item.wager_quantity;
+                            } else if(type=='burn'){
+                                asset    = 'BTC';
+                                quantity = item.burned;
+                            } else if(type=='order'){
+                                asset    = item.get_asset,
+                                quantity = item.get_quantity;
+                            } else if(type=='send'){
+                                if(item.source==address)
+                                    quantity = '-' + quantity;
+
+                            }
+                            me.updateTransactionHistory(address, item.tx_hash, type, asset, item.asset_longname, quantity, item.timestamp);
+                        });
+                        me.saveStore('Transactions');
+                    }
+                }
+            });
+        });        
     },
 
 
     // Handle creating/updating address transaction history
-    updateTransactionHistory: function(address, tx, type, currency, amount, timestamp){
-        // console.log('updateTransactionHistory address, tx, type, currency, amount=', address, tx, type, currency, amount, timestamp);
+    updateTransactionHistory: function(address, tx, type, asset, asset_longname, quantity, timestamp){
+        // console.log('updateTransactionHistory address, tx, type, asset, asset_longname, amount, timestamp=', address, tx, type, asset, asset_longname, quantity, timestamp);
         var me     = this,
             addr   = (address) ? address : FW.WALLET_ADDRESS.address,
-            type   = (type) ? type : 1, // default to send
             store  = Ext.getStore('Transactions'),
             time   = (timestamp) ? timestamp : 0,
             record = {};
@@ -768,16 +755,19 @@ Ext.define('FW.controller.Main', {
                 return false;                
             }
         });
+        // Bail out if this is already a known transaction
+        if(asset=='BTC' && typeof record.hash !== 'undefined')
+            return;
         var rec = {
             id: addr.substr(0,5) + '-' + tx.substr(0,5),
             prefix: addr.substr(0,5),
             type: type,
             hash: tx,
-            currency: currency
+            asset: (asset_longname) ? asset_longname : asset
         };
         // Only set amount if we have one
-        if(amount)
-            rec.amount = String(amount).replace('+','')
+        if(quantity)
+            rec.quantity = String(quantity).replace('+','')
         // Only set timestamp if we have one
         if(time)
             rec.time = time;
