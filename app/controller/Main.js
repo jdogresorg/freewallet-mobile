@@ -31,6 +31,9 @@ Ext.define('FW.controller.Main', {
         FW.WALLET_ADDRESS = sm.getItem('address') || null;  // Current wallet address info
         FW.TOUCHID        = sm.getItem('touchid') || false; // TouchID Authentication enabled (iOS 8+)
         FW.NETWORK_INFO   = {};                             // latest network information (price, fees, unconfirmed tx, etc)
+        FW.API_KEYS       = {
+            BLOCKTRAIL: 'efb0aae5420f167113cc81a9edf7b276d40c2565'
+        }
         // Define default server/host settings
         FW.SERVER_INFO    = {
             mainnet: {
@@ -679,32 +682,56 @@ Ext.define('FW.controller.Main', {
         me.getTransactionHistory(address, callback);
     },
 
-
     // Handle getting Bitcoin transaction history
     getTransactionHistory: function(address, callback){
         var me    = this,
+            net   = (FW.WALLET_NETWORK==2) ? 'tbtc' : 'btc',
             hostA = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
             hostB = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io',
             types = ['bets','broadcasts','burns','dividends','issuances','orders','sends'];
-        // Get BTC transaction history
+        // Get BTC transaction history from blocktrail
         me.ajaxRequest({
-            url: 'https://' + hostA + '/api/v1/address/txs/' + address,
+            url: 'https://api.blocktrail.com/v1/' + net + '/address/' + address + '/transactions?limit=100&sort_dir=desc&api_key=' + FW.API_KEYS.BLOCKTRAIL,
             success: function(o){
-                if(o.data && o.data.txs){
-                    Ext.each(o.data.txs, function(item,idx){
-                        // Only pay attention to the last 100 transactions
-                        if(idx<99){
-                            var time = moment(item.time_utc,["YYYY-MM-DDTH:m:s"]).unix();
-                            me.updateTransactionHistory(address, item.tx, 'send', 'BTC', null, item.amount, time);
-                        }
-                    });
-                    me.saveStore('Transactions');
-                }
+                Ext.each(o.data, function(item,idx){
+                    var time  = moment(item.time,["YYYY-MM-DDTH:m:s"]).unix(),
+                        value = numeral((item.estimated_value - item.total_fee) * 0.00000001).format('0.00000000')
+                    me.updateTransactionHistory(address, item.hash, 'send', 'BTC', null, value , time);
+                });
+                me.saveStore('Transactions');
                 // Handle processing callback now
                 if(callback)
                     callback();
+            },
+            failure: function(o){
+                // If the request to blocktrail API failed, fallback to slower blockr.io API
+                me.ajaxRequest({
+                    url: 'https://' + hostA + '/api/v1/address/txs/' + address,
+                    success: function(o){
+                        if(o.data && o.data.txs){
+                            Ext.each(o.data.txs, function(item,idx){
+                                // Only pay attention to the last 100 transactions
+                                if(idx<99){
+                                    var time = moment(item.time_utc,["YYYY-MM-DDTH:m:s"]).unix();
+                                    me.updateTransactionHistory(address, item.tx, 'send', 'BTC', null, item.amount, time);
+                                }
+                            });
+                            me.saveStore('Transactions');
+                        }
+                        // Handle processing callback now
+                        if(callback)
+                            callback();
+                    },
+                    failure: function(o){
+                        // Handle processing callback now
+                        if(callback)
+                            callback();
+
+                    }
+                });
+
             }
-        });
+        });        
         // Loop through transaction types and get latest transactions
         Ext.each(types, function(type){
             me.ajaxRequest({
@@ -728,7 +755,6 @@ Ext.define('FW.controller.Main', {
                             } else if(type=='send'){
                                 if(item.source==address)
                                     quantity = '-' + quantity;
-
                             }
                             me.updateTransactionHistory(address, item.tx_hash, type, asset, item.asset_longname, quantity, item.timestamp);
                         });

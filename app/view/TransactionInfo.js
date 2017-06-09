@@ -191,6 +191,7 @@
     // Handle requesting transaction information
     getTransactionInfo: function(data){
         var me    = this,
+            net   = (FW.WALLET_NETWORK==2) ? 'tbtc' : 'btc',
             hostA = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
             hostB = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
         // Set loading mask on panel to indicate we are loading 
@@ -203,46 +204,65 @@
         });
         // Get BTC transaction info
         if(data.asset=='BTC'){
+            // Get BTC transaction info from blocktrail
             me.main.ajaxRequest({
-                url: 'https://' + hostA + '/api/v1/tx/info/' + data.hash,
+                url: 'https://api.blocktrail.com/v1/' + net + '/transaction/' + data.hash + '?api_key=' + FW.API_KEYS.BLOCKTRAIL,
                 success: function(o){
-                    if(o.data){
-                        // Get Source and Destination
-                        // Come back and clean this up at some point...
-                        var src  = o.data.vins[0].address,
-                            dest = false;
-                        Ext.each(o.data.vouts,function(vout){
-                            if(!vout.is_nonstandard){
-                                dst = vout.address;
-                                return false;                                
-                            }
-                        });
-                        // Handle subtracting miners fee from sent amount
+                    if(o.hash){
                         // console.log('data=',data);
-                        var amt = data.quantity;
-                        // if(/\-/.test(data.quantity)){
-                        //     amt = me.main.getSatoshis(Math.abs(data.quantity)) - me.main.getSatoshis(o.data.fee),
-                        //     amt = numeral(amt).multiply(0.00000001);
-                        // }
-                        str = numeral(amt).format('0,0.00000000');
                         me.updateData({ 
                             type: 'Send',
                             asset: 'BTC',
-                            quantity: str,
-                            hash: data.hash,
-                            source: src,
-                            destination: dst,
-                            block_index: o.data.block,
-                            timestamp: data.time,
-                            fee: o.data.fee
+                            quantity: numeral(o.estimated_value).multiply(0.00000001).format('0,0.00000000'),
+                            hash: o.hash,
+                            source: o.inputs[0].address,
+                            destination: o.outputs[0].address,
+                            block_index: o.block_height,
+                            timestamp: moment(o.first_seen_at,["YYYY-MM-DDTH:m:s"]).unix(),
+                            fee: numeral(o.total_fee).multiply(0.00000001).format('0,0.00000000'),
                         });
                     }
-                },
-                // Callback function called on any response
-                callback: function(){
                     me.setMasked(false);
-                }    
-            });  
+                },
+                failure: function(o){
+                    // If the request to blocktrail API failed, fallback to slower blockr.io API
+                    me.main.ajaxRequest({
+                        url: 'https://' + hostA + '/api/v1/tx/info/' + data.hash,
+                        success: function(o){
+                            if(o.data){
+                                // Get Source and Destination
+                                // Come back and clean this up at some point...
+                                var src  = o.data.vins[0].address,
+                                    dest = false;
+                                Ext.each(o.data.vouts,function(vout){
+                                    if(!vout.is_nonstandard){
+                                        dst = vout.address;
+                                        return false;                                
+                                    }
+                                });
+                                // Handle subtracting miners fee from sent amount
+                                // console.log('data=',data);
+                                me.updateData({ 
+                                    type: 'Send',
+                                    asset: 'BTC',
+                                    quantity: data.quantity,
+                                    hash: data.hash,
+                                    source: src,
+                                    destination: dst,
+                                    block_index: o.data.block,
+                                    timestamp: data.time,
+                                    fee: o.data.fee
+                                });
+                            }
+                        },
+                        // Callback function called on any response
+                        callback: function(){
+                            me.setMasked(false);
+                        }    
+                    });                    
+                }
+            });
+  
         } else {
             // console.log('data=',data);
             // Handle requesting transaction info from counterpartychain.io API
