@@ -725,14 +725,14 @@ Ext.define('FW.controller.Main', {
             net   = (FW.WALLET_NETWORK==2) ? 'tbtc' : 'btc',
             hostA = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
             hostB = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io',
-            types = ['bets','broadcasts','burns','dividends','issuances','orders','sends'];
+            types = ['bets','broadcasts','burns','dividends','issuances','orders','sends','mempool'];
         // Get BTC transaction history from blocktrail
         me.ajaxRequest({
             url: 'https://api.blocktrail.com/v1/' + net + '/address/' + address + '/transactions?limit=100&sort_dir=desc&api_key=' + FW.API_KEYS.BLOCKTRAIL,
             success: function(o){
                 Ext.each(o.data, function(item,idx){
-                    var time  = moment(item.time,["YYYY-MM-DDTH:m:s"]).unix(),
-                        value = numeral((item.estimated_value - item.total_fee) * 0.00000001).format('0.00000000')
+                    var time  = (item.block_height) ? moment(item.time,["YYYY-MM-DDTH:m:s"]).unix() : null,
+                        value = numeral((item.estimated_value) * 0.00000001).format('0.00000000')
                     if(item.inputs[0].address==address)
                         value = '-' + value;
                     me.updateTransactionHistory(address, item.hash, 'send', 'BTC', null, value , time);
@@ -777,24 +777,34 @@ Ext.define('FW.controller.Main', {
                 url: 'https://' + hostB + '/api/' + type + '/' + address,
                 success: function(o){
                     if(o.data){
-                        type = String(type).substring(0,type.length-1);
+                        // Strip trailing s off type to make it singular
+                        if(String(type).substring(type.length-1)=='s')
+                            type = String(type).substring(0,type.length-1);
+                        // Loop through data and add to transaction list
                         Ext.each(o.data, function(item){
                             var asset    = item.asset,
-                                quantity = item.quantity;
-                            if(type=='bet'){
+                                quantity = item.quantity,
+                                tstamp   = item.timestamp,
+                                tx_type  = type;
+                            // Set type from mempool data, and reset timestamp, so things show as pending
+                            if(tx_type=='mempool'){
+                                tx_type = String(item.tx_type).toLowerCase();
+                                tstamp  = null;
+                            }
+                            if(tx_type=='bet'){
                                 asset    = 'XCP';
                                 quantity = item.wager_quantity;
-                            } else if(type=='burn'){
+                            } else if(tx_type=='burn'){
                                 asset    = 'BTC';
                                 quantity = item.burned;
-                            } else if(type=='order'){
+                            } else if(tx_type=='order'){
                                 asset    = item.get_asset,
                                 quantity = item.get_quantity;
-                            } else if(type=='send'){
+                            } else if(tx_type=='send'){
                                 if(item.source==address)
                                     quantity = '-' + quantity;
                             }
-                            me.updateTransactionHistory(address, item.tx_hash, type, asset, item.asset_longname, quantity, item.timestamp);
+                            me.updateTransactionHistory(address, item.tx_hash, tx_type, asset, item.asset_longname, quantity, tstamp);
                         });
                         me.saveStore('Transactions');
                     }
@@ -1348,7 +1358,7 @@ Ext.define('FW.controller.Main', {
                     callback(txid);
             },
             failure: function(){
-                // If the request to XChain API failed, fallback to chain.io API
+                // If the request to XChain API failed, fallback to chain.so API
                 me.ajaxRequest({
                     url: 'https://chain.so/api/v2/send_tx/' + net,
                     method: 'POST',

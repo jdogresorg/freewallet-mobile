@@ -171,12 +171,13 @@
         var me    = this,
             fmt   = (/\./.test(data.quantity)||data.asset=='BTC') ? '0,0.00000000' : '0,0',
             time  = (data.timestamp) ? Ext.Date.format(new Date(parseInt(data.timestamp + '000')),'m-d-Y H:i:s') : '',
-            block = (data.block_index) ? numeral(data.block_index).format('0,0') : '',
+            block = (data.block_index) ? numeral(data.block_index).format('0,0') : '-',
             qty   = (data.quantity) ? data.quantity.replace('-','') : 0,
             status = (data.timestamp) ? ((data.status) ? data.status : 'Valid') : 'Pending',
             type   = (typeof data.type === 'string') ? data.type : 'Send';
             fee    = (data.fee) ? data.fee : 'NA',
-            asset  = (data.asset_longname && data.asset_longname!='') ? data.asset_longname : data.asset;
+            asset  = (data.asset_longname && data.asset_longname!='') ? data.asset_longname : data.asset,
+            type   = data.type.charAt(0).toUpperCase() + data.type.slice(1);
         if(type=='Order'){
             var buying  = (data.get_asset_longname!='') ? data.get_asset_longname : data.get_asset,
                 selling = (data.give_asset_longname!='') ? data.give_asset_longname : data.give_asset,
@@ -233,6 +234,7 @@
                             asset: 'BTC',
                             quantity: numeral(o.estimated_value).multiply(0.00000001).format('0,0.00000000'),
                             hash: o.hash,
+                            status: (o.block_height) ? 'Valid' : 'Pending',
                             source: o.inputs[0].address,
                             destination: o.outputs[0].address,
                             block_index: o.block_height,
@@ -300,7 +302,8 @@
                             feePaid: o.fee + ' XCP',
                             transfer: (o.transfer) ? 'True' : 'False',
                             locked: (o.locked) ? 'True' : 'False',
-                            divisible: (o.divisible) ? 'True' : 'False'
+                            divisible: (o.divisible) ? 'True' : 'False',
+                            status : (o.status) ? o.status : 'Pending'
                         }));
                     }
                 },

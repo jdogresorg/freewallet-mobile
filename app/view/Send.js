@@ -353,7 +353,6 @@ Ext.define('FW.view.Send', {
             amt_sat = me.main.getSatoshis(amount),
             fee_sat = me.main.getSatoshis(String(vals.feeAmount).replace(' BTC','')),
             bal_sat = me.main.getSatoshis(me.main.getBalance('BTC'));
-        console.log('bal_sat,fee_sat=',bal_sat,fee_sat);
         // Verify that we have all the info required to do a send
         if(vals.amount==0){
             msg = 'You must enter a send amount';
