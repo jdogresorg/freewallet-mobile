@@ -286,6 +286,7 @@ Ext.define('FW.view.Send', {
                     price_usd = item.price_usd;
             });
             me.tokenInfo = {
+                asset: 'BTC',
                 estimated_value : {
                     btc: 1.00000000,
                     usd: price_usd,
@@ -409,7 +410,7 @@ Ext.define('FW.view.Send', {
             me.main.cpSend(FW.WALLET_NETWORK, FW.WALLET_ADDRESS.address, vals.destination, vals.asset, amt_sat, fee_sat, cb);
         }
         // Confirm action with user
-        var asset = (me.tokenInfo.asset_longname!='') ? me.tokenInfo.asset_longname : me.tokenInfo.asset;
+        var asset = (me.tokenInfo.asset_longname && me.tokenInfo.asset_longname!='') ? me.tokenInfo.asset_longname : me.tokenInfo.asset;
         Ext.Msg.confirm('Confirm Send', 'Send ' + vals.amount + ' ' +  asset +'?', function(btn){
             if(btn=='yes')
                 fn();

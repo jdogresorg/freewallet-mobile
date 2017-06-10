@@ -477,29 +477,58 @@ Ext.define('FW.controller.Main', {
             addr   = (address) ? address : FW.WALLET_ADDRESS,
             prefix = addr.substr(0,5),
             store  = Ext.getStore('Balances'),
+            net    = (FW.WALLET_NETWORK==2) ? 'tbtc' : 'btc',
             hostA  = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
-            hostB  = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
-        // Get BTC balance
+            hostB  = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io',
+            price_usd = 0,
+            price_btc = 0;
+        // Lookup Bitcoin and Counterparty price info
+        Ext.each(FW.NETWORK_INFO.currency_info, function(item){
+            if(item.id=='bitcoin')
+                price_usd = item.price_usd;
+            if(item.id=='counterparty')
+                price_btc = item.price_btc;
+        });
+        // Get Address balance from blocktrail
         me.ajaxRequest({
-            url: 'https://' + hostA + '/api/v1/address/info/' + address,
+            url: 'https://api.blocktrail.com/v1/' + net + '/address/' + address + '?api_key=' + FW.API_KEYS.BLOCKTRAIL,
             success: function(o){
-                if(o.data){
-                    var quantity  = (o.data.balance) ? numeral(o.data.balance).format('0.00000000') : '0.00000000',
-                        price_btc = 0;
-                    Ext.each(FW.NETWORK_INFO.currency_info, function(item){
-                        if(item.id=='bitcoin')
-                            price_usd = item.price_usd;
-                        if(item.id=='counterparty')
-                            price_btc = item.price_btc;
-                    });
-                    var values = { 
-                        usd: numeral(price_usd * quantity).format('0.00000000'),
-                        btc: '1.00000000',
-                        xcp: numeral(1 / price_btc).format('0.00000000')
-                    };
+                if(o.address){
+                    var quantity = (o.balance) ? numeral(o.balance * 0.00000001).format('0.00000000') : '0.00000000',
+                        values   = { 
+                            usd: numeral(parseFloat(price_usd * quantity)).format('0.00000000'),
+                            btc: '1.00000000',
+                            xcp: (price_btc) ? numeral(1 / price_btc).format('0.00000000') : '0.00000000'
+                        };
                     me.updateAddressBalance(address, 1, 'BTC','', quantity, values);
                     me.saveStore('Balances');
                 }
+                // Handle processing callback now
+                if(callback)
+                    callback();
+            },
+            failure: function(o){
+                // If the request to blocktrail API failed, fallback to slower blockr.io API
+                me.ajaxRequest({
+                    url: 'https://' + hostA + '/api/v1/address/info/' + address,
+                    success: function(o){
+                        if(o.data){
+                            var quantity = (o.data.balance) ? numeral(o.data.balance).format('0.00000000') : '0.00000000',
+                                values   = { 
+                                    usd: numeral(price_usd * quantity).format('0.00000000'),
+                                    btc: '1.00000000',
+                                    xcp: (price_btc) ? numeral(1 / price_btc).format('0.00000000') : '0.00000000'
+                                };
+                            me.updateAddressBalance(address, 1, 'BTC','', quantity, values);
+                            me.saveStore('Balances');
+                        }
+                    },
+                    callback: function(){
+                        // Handle processing callback now
+                        if(callback)
+                            callback();
+                    }
+                });
             }
         });
         // Get Asset balances
@@ -517,8 +546,6 @@ Ext.define('FW.controller.Main', {
                         me.updateAddressBalance(address, 1, 'XCP', '', '0.00000000');
                 }
                 me.saveStore('Balances');
-                if(callback)
-                    callback();
             }
         }, true);            
     },
@@ -696,6 +723,8 @@ Ext.define('FW.controller.Main', {
                 Ext.each(o.data, function(item,idx){
                     var time  = moment(item.time,["YYYY-MM-DDTH:m:s"]).unix(),
                         value = numeral((item.estimated_value - item.total_fee) * 0.00000001).format('0.00000000')
+                    if(item.inputs[0].address==address)
+                        value = '-' + value;
                     me.updateTransactionHistory(address, item.hash, 'send', 'BTC', null, value , time);
                 });
                 me.saveStore('Transactions');
@@ -740,7 +769,6 @@ Ext.define('FW.controller.Main', {
                     if(o.data){
                         type = String(type).substring(0,type.length-1);
                         Ext.each(o.data, function(item){
-                            console.log('item=',item);
                             var asset    = item.asset,
                                 quantity = item.quantity;
                             if(type=='bet'){
@@ -1295,23 +1323,42 @@ Ext.define('FW.controller.Main', {
     // Handle broadcasting a given transaction
     broadcastTransaction: function(network, tx, callback){
         var me  = this,
-            net = (network==2) ? 'BTCTEST' : 'BTC';
+            net  = (network==2) ? 'BTCTEST' : 'BTC';
+            host = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io',
+        // First try to broadcast using the XChain API
         me.ajaxRequest({
-            url: 'https://chain.so/api/v2/send_tx/' + net,
+            url: 'https://' + host + '/api/send_tx',
             method: 'POST',
-            jsonData: {
-                tx_hex: tx
-            },
-            failure: function(o){
-                if(callback)
-                    callback();
+            params: {
+                'tx_hex': tx
             },
             success: function(o){
-                var txid = (o && o.data && o.data.txid) ? o.data.txid : false;
+                var txid = (o && o.tx_hash) ? o.tx_hash : false;
                 if(callback)
                     callback(txid);
-            }
+            },
+            failure: function(){
+                // If the request to XChain API failed, fallback to chain.io API
+                me.ajaxRequest({
+                    url: 'https://chain.so/api/v2/send_tx/' + net,
+                    method: 'POST',
+                    jsonData: {
+                        tx_hex: tx
+                    },
+                    failure: function(){
+                        if(callback)
+                            callback();
+                    },
+                    success: function(o){
+                        var txid = (o && o.data && o.data.txid) ? o.data.txid : false;
+                        if(callback)
+                            callback(txid);
+                    }
+                },true);
+            },
         },true);
+
+
     },
 
     // Handle updating misc network info (currency, fee, network info)
@@ -1327,6 +1374,11 @@ Ext.define('FW.controller.Main', {
                     // Save info to localStorage so we can preload last known prices on reload
                     sm.setItem('networkInfo',Ext.encode(o));
                     sm.setItem('networkInfoUpdated', Date.now());
+                    // Update the miners fee info so we can use it in the transaction
+                    FW.MINER_FEES = Ext.apply(FW.MINER_FEES,{       
+                        medium: o.fee_info.low_priority,
+                        fast: o.fee_info.optimal
+                    });
                     // Update Balances list now that we have updated price info
                     if(refresh)
                         Ext.getCmp('balancesList').refresh();
