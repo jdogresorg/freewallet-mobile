@@ -84,12 +84,18 @@
                     label: 'TX Type',
                     itemId: 'type'
                 },{
+                    xtype: 'fw-actionfield',
+                    iconCls: 'fa fa-files-o',
                     label: 'Source',
                     itemId: 'source'
                 },{
+                    xtype: 'fw-actionfield',
+                    iconCls: 'fa fa-files-o',
                     label: 'Issuer',
                     itemId: 'issuer'
                 },{
+                    xtype: 'fw-actionfield',
+                    iconCls: 'fa fa-files-o',
                     label: 'Destination',
                     itemId: 'destination'
                 },{
@@ -118,9 +124,9 @@
                     itemId: 'feePaid'
                 },{
                     xtype: 'fw-actionfield',
+                    iconCls: 'fa fa-globe',
                     label: 'TX Hash',
-                    itemId: 'hash',
-                    iconCls: 'fa fa-globe'
+                    itemId: 'hash'
                 },{
                     label: 'Block #',
                     itemId: 'block'

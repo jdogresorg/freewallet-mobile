@@ -75,7 +75,25 @@
             else 
                 url  = 'https://' + host + '/tx/' + val;
             me.main.openUrl(url);
-        });        
+        });
+        // Setup listeners on certain fields to handle copying value to clipboard
+        var copyFields = ['source','issuer','destination'];
+        Ext.each(copyFields, function(name){
+            var field = me[name];
+            // Handle native copy-to-clipboard functionality
+            if(me.main.isNative){
+                field.btn.on('tap', function(){ 
+                    me.main.copyToClipboard(field.getValue()); 
+                });
+            } else {
+                // Handle non-native copy-to-clipboard functionality
+                var clipboard = new Clipboard('#' + field.id + ' .fa-files-o', {
+                    text: function(e){
+                        return field.getValue();
+                    }
+                });
+            }
+        });
     },
 
 
