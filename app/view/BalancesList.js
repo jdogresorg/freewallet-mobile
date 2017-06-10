@@ -103,6 +103,6 @@ Ext.define('FW.view.BalancesList', {
             property : 'asset_longname',
             direction: 'ASC'
         }]);
-    },
+    }
 
 });

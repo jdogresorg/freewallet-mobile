@@ -239,7 +239,7 @@
                             destination: o.outputs[0].address,
                             block_index: o.block_height,
                             timestamp: moment(o.first_seen_at,["YYYY-MM-DDTH:m:s"]).unix(),
-                            fee: numeral(o.total_fee).multiply(0.00000001).format('0,0.00000000'),
+                            fee: numeral(o.total_fee).multiply(0.00000001).format('0,0.00000000')
                         });
                     }
                     me.setMasked(false);

@@ -1375,7 +1375,7 @@ Ext.define('FW.controller.Main', {
                             callback(txid);
                     }
                 },true);
-            },
+            }
         },true);
 
 
