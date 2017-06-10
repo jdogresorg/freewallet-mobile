@@ -471,6 +471,21 @@ Ext.define('FW.controller.Main', {
     },
 
 
+    // Handle getting a price for a given currency/type
+    getCurrencyPrice: function(currency, type){
+        var value = false;
+        Ext.each(FW.NETWORK_INFO.currency_info, function(item){
+            if(item.id==currency){
+                if(type=='usd')
+                    value = item.price_usd;
+                if(type=='btc')                
+                    value = item.price_btc;
+            }
+        });
+        return value;
+    },
+
+
     // Handle getting address balance information
     getAddressBalances: function(address, callback){
         var me     = this,
@@ -479,23 +494,16 @@ Ext.define('FW.controller.Main', {
             store  = Ext.getStore('Balances'),
             net    = (FW.WALLET_NETWORK==2) ? 'tbtc' : 'btc',
             hostA  = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
-            hostB  = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io',
-            price_usd = 0,
-            price_btc = 0;
-        // Lookup Bitcoin and Counterparty price info
-        Ext.each(FW.NETWORK_INFO.currency_info, function(item){
-            if(item.id=='bitcoin')
-                price_usd = item.price_usd;
-            if(item.id=='counterparty')
-                price_btc = item.price_btc;
-        });
+            hostB  = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
         // Get Address balance from blocktrail
         me.ajaxRequest({
             url: 'https://api.blocktrail.com/v1/' + net + '/address/' + address + '?api_key=' + FW.API_KEYS.BLOCKTRAIL,
             success: function(o){
                 if(o.address){
-                    var quantity = (o.balance) ? numeral(o.balance * 0.00000001).format('0.00000000') : '0.00000000',
-                        values   = { 
+                    var quantity  = (o.balance) ? numeral(o.balance * 0.00000001).format('0.00000000') : '0.00000000',
+                        price_usd = me.getCurrencyPrice('bitcoin','usd'),
+                        price_btc = me.getCurrencyPrice('counterparty','btc'),
+                        values    = { 
                             usd: numeral(parseFloat(price_usd * quantity)).format('0.00000000'),
                             btc: '1.00000000',
                             xcp: (price_btc) ? numeral(1 / price_btc).format('0.00000000') : '0.00000000'
@@ -513,8 +521,10 @@ Ext.define('FW.controller.Main', {
                     url: 'https://' + hostA + '/api/v1/address/info/' + address,
                     success: function(o){
                         if(o.data){
-                            var quantity = (o.data.balance) ? numeral(o.data.balance).format('0.00000000') : '0.00000000',
-                                values   = { 
+                            var quantity  = (o.data.balance) ? numeral(o.data.balance).format('0.00000000') : '0.00000000',
+                                price_usd = me.getCurrencyPrice('bitcoin','usd'),
+                                price_btc = me.getCurrencyPrice('counterparty','btc'),
+                                values    = { 
                                     usd: numeral(price_usd * quantity).format('0.00000000'),
                                     btc: '1.00000000',
                                     xcp: (price_btc) ? numeral(1 / price_btc).format('0.00000000') : '0.00000000'

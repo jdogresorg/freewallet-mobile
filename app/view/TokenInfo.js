@@ -120,11 +120,8 @@
     getTokenInfo: function(data){
         var me   = this;
         if(data.asset=='BTC'){
-            Ext.each(FW.NETWORK_INFO.currency_info, function(item){
-                if(item.id=='bitcoin')
-                    price_usd = item.price_usd;
-            });
-            var values = Ext.apply(data.estimated_value,{
+            var price_usd = me.main.getCurrencyPrice('bitcoin','usd'),
+                values = Ext.apply(data.estimated_value,{
                 usd: price_usd
             });
             me.updateData({
@@ -170,7 +167,7 @@
 
 
     // Handle requesting enhanced asset information
-    getEnhancedAsssetInfo: function(url){
+    getEnhancedAssetInfo: function(url){
         var me = this;
         if(!me.main.isUrl(url))
             url = 'http://' + url;
