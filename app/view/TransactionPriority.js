@@ -24,7 +24,7 @@
                 labelWidth: 70,
                 minValue: 1,
                 maxValue: 3,
-                value: 1,
+                value: 2,
                 listeners: {
                     // Handle when user drags slider
                     drag: function(cmp, sl, thumb, e, eOpts){
@@ -64,11 +64,15 @@
                 }
             }]
         },{
-            xtype: 'textfield',
+            xtype: 'fw-spinnerfield',
             label: 'Miner Fee',
             name: 'feeAmount',
-            value: '0.00010000 BTC',
-            readOnly: true
+            value: 0.0001,
+            decimalPrecision: 8,
+            minValue: 0.00000000,
+            maxValue: 100.00000000,
+            stepValue: 0.0001,
+
         }]
     },
 
@@ -90,7 +94,7 @@
     setType: function(val){
         var me  = this,
             txt = '';
-        if(val==1) txt = '<span class="fee low">Standard</span>';
+        if(val==1) txt = '<span class="fee low">Low</span>';
         if(val==2) txt = '<span class="fee medium">Medium</span>';
         if(val==3) txt = '<span class="fee high">High</span>';
         me.feeType.setData({ text: txt });
@@ -109,14 +113,14 @@
             if(val==3)
                 fee = ((o.fast / 1000) * avg) * 0.00000001;
         }
-        me.feeAmount.setValue(numeral(fee).format('0,0.00000000') + ' BTC')
+        me.feeAmount.setValue(numeral(fee).format('0,0.00000000'))
     },
 
 
     reset: function(){
         var me = this;
         me.feePriority.setValue(1);
-        me.feeType.setData({ text: '<span class="fee low">Standard</span>' });
+        me.feeType.setData({ text: '<span class="fee low">Low</span>' });
         me.feeAmount.reset();
     }
 

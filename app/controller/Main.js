@@ -81,6 +81,12 @@ Ext.define('FW.controller.Main', {
                     interval = 600000; // 10 minutes 
                 if(network)
                     FW.NETWORK_INFO = Ext.decode(network);
+                // Parse in last known network fees
+                if(FW.NETWORK_INFO.fee_info){
+                    var o = FW.NETWORK_INFO.fee_info;
+                    FW.MINER_FEES.medium = o.low_priority;
+                    FW.MINER_FEES.fast   = o.optimal;
+                }
                 // Refresh if we have no network data, or it is older than interval
                 if(!tstamp || (tstamp && (parseInt(tstamp)+interval) < Date.now()))
                     me.updateNetworkInfo(true);
