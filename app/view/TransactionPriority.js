@@ -67,12 +67,11 @@
             xtype: 'fw-spinnerfield',
             label: 'Miner Fee',
             name: 'feeAmount',
-            value: 0.0001,
             decimalPrecision: 8,
-            minValue: 0.00000000,
+            value:      0.00010000,
+            minValue:   0.00000000,
             maxValue: 100.00000000,
-            stepValue: 0.0001,
-
+            stepValue:  0.00010000
         }]
     },
 
@@ -87,6 +86,7 @@
         me.feeType     = me.down('[name=feeType]');
         me.feeAmount   = me.down('[name=feeAmount]');
         me.callParent();
+        me.setFee(1);
     },
 
 
@@ -121,7 +121,7 @@
         var me = this;
         me.feePriority.setValue(1);
         me.feeType.setData({ text: '<span class="fee low">Low</span>' });
-        me.feeAmount.reset();
+        me.setFee(1);
     }
 
 

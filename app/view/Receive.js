@@ -155,8 +155,8 @@ Ext.define('FW.view.Receive', {
     getTokenInfo: function(asset){
         var me = this;
         if(asset=='BTC'){
-            var price_usd = me.getCurrencyPrice('bitcoin','usd'),
-                price_btc = me.getCurrencyPrice('counterparty','btc');
+            var price_usd = me.main.getCurrencyPrice('bitcoin','usd'),
+                price_btc = me.main.getCurrencyPrice('counterparty','btc');
             me.tokenInfo = {
                 estimated_value : {
                     btc: 1.00000000,
