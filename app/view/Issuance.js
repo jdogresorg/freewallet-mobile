@@ -34,16 +34,17 @@ Ext.define('FW.view.Issuance', {
                     name: 'type',
                     options: [
                         {text: 'Alphabetical Name', value: 1},
-                        {text: 'Numeric Name',      value: 2}
+                        {text: 'Numeric Name',      value: 2},
+                        {text: 'Subasset',          value: 3}
                     ],
                     listeners: {
-                        change: function(cmp, newVal, oldVal, opts){
-                            if(newVal!=oldVal){
+                        change: function(cmp, val, oldVal, opts){
+                            if(val!=oldVal){
                                 var me  = Ext.getCmp('issuanceView'),
-                                    len = (newVal==2) ? 21 : 12;
+                                    len = (val==3) ? 255 : ((val==2) ? 21 : 12);
                                 me.name.reset();
                                 me.name.setMaxLength(len);
-                                if(newVal==2){
+                                if(val==2){
                                     // Generate a random numeric asset name
                                     var min = 100000000000000000,
                                         max = 9999999999999999999,
@@ -60,10 +61,19 @@ Ext.define('FW.view.Issuance', {
                     listeners: {
                         keyup: function(cmp, e, opts){
                             var me   = Ext.getCmp('issuanceView'),
-                                txt  = String(cmp.getValue()).toUpperCase(),
-                                type = me.type.getValue();
-                            if(type==2)
-                                txt = 'A' + txt.replace(/\D/g,'');
+                                type = me.type.getValue(),
+                                val  = String(cmp.getValue()),
+                                txt  = '';
+                            if(type==1){
+                                txt = val.toUpperCase();
+                            } else if(type==2){
+                                txt = 'A' + val.toUpperCase().replace(/\D/g,'');
+                            } else if(type==3){
+                                // If we have the parent asset name, make it upper case
+                                val.split('.').forEach(function(name, idx, arr){
+                                    txt += (idx==0) ? name.toUpperCase() : '.' + name;
+                                });
+                            }
                             cmp.setValue(txt);
                         }
                     }
@@ -181,18 +191,27 @@ Ext.define('FW.view.Issuance', {
         // Validate the issuance data and display any 
         if(vals.name==''){
             msg = 'You must enter a token name';
-        } else if(type==1 && (len<4||len>12)){
-            msg = 'Alphabetical tokens must be between 4-12 characters long.';
-        } else if(type==1 && !/^[A-Z]+$/i.test(vals.name)){
-            msg = 'Alphabetical tokens must only contain A-Z characters.';
-        } else if(type==1 && first=='A'){
-            msg = 'Alphabetical tokens can not start with the letter A.';
-        } else if(type==2 && (len<19||len>21)){
-            msg = 'Numeric tokens must be between 19-21 characters long.';
-        } else if(type==2 && first!='A'){
-            msg = 'Numeric tokens must being with the letter A.';
-        } else if(type==1 && xcp_bal<0.5){
-            msg = '0.5 XCP Required.<br/>Please fund this address with some XCP and try again.';
+        } else if(type==1){
+            if(len<4||len>12)
+                msg = 'Alphabetical tokens must be between 4-12 characters long.';
+            else if(!/^[A-Z]+$/i.test(vals.name))
+                msg = 'Alphabetical tokens must only contain A-Z characters.';
+            else if(first=='A')
+                msg = 'Alphabetical tokens can not start with the letter A.';
+            else if(xcp_bal<0.5)
+                msg = '0.5 XCP Required.<br/>Please fund this address with some XCP and try again.';
+        } else if(type==2){
+            if(len<19||len>21)
+                msg = 'Numeric tokens must be between 19-21 characters long.';
+            else if(first!='A')
+                msg = 'Numeric tokens must being with the letter A.';
+        } else if(type==3){
+            if(!/^[A-Za-z0-9.\-_@!]+$/i.test(vals.name))
+                msg = 'Subassets must only contain characters a-zA-Z0-9.-_@!';
+            else if(vals.name.substr(0,1)=='.'||vals.name.substr(vals.name.length-1,1)=='.')
+                msg = 'Subassets cannot start or end with a period (.)';
+            else if(vals.name.indexOf('..')!=-1)
+                msg = 'Subassets cannot contain multiple consecutive periods (..)';
         } else if(fee_sat > btc_sat){
             msg = 'Bitcoin balance below required amount.<br/>Please fund this address with some Bitcoin and try again.';
         }
