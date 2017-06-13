@@ -455,6 +455,13 @@ Ext.define('FW.controller.Main', {
         });
         // Save any changes to disk
         store.sync();
+        // Update the label above the address balances list
+        var cmp = Ext.getCmp('balancesView');
+        if(cmp)
+            cmp.list.tb.tb.setTitle(val);
+        var cmp = Ext.getCmp('transactionsList');
+        if(cmp)
+            cmp.tb.tb.setTitle(val);
     },
 
 
@@ -495,7 +502,7 @@ Ext.define('FW.controller.Main', {
     // Handle getting address balance information
     getAddressBalances: function(address, callback){
         var me     = this,
-            addr   = (address) ? address : FW.WALLET_ADDRESS,
+            addr   = (address) ? address : FW.WALLET_ADDRESS.address,
             prefix = addr.substr(0,5),
             store  = Ext.getStore('Balances'),
             net    = (FW.WALLET_NETWORK==2) ? 'tbtc' : 'btc',

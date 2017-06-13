@@ -89,6 +89,11 @@ Ext.define('FW.view.BalancesList', {
         // Display the menu button if we are on a phone
         if(me.main.deviceType=='phone')
             me.tb.menuBtn.show();
+        // Display address label in titlebar, wrap at 220 pixels, display address on tap
+        me.tb.tb.setTitle(FW.WALLET_ADDRESS.label);
+        var title = me.tb.tb.el.down('.x-title');
+        title.setMaxWidth(220);
+        title.on('tap',function(){ me.main.showQRCodeView({ text: FW.WALLET_ADDRESS.address }); });
         // Call parent function
         me.callParent();
         // Handle sorting currencies by type and name
