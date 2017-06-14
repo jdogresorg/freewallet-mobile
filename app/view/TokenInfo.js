@@ -106,9 +106,12 @@
         me.supply.setValue(numeral(data.supply).format(fmt));
         me.divisible.setValue((data.divisible) ? 'True' : 'False');
         me.locked.setValue((data.locked) ? 'True' : 'False');
-        me.usd.setValue(numeral(data.estimated_value.usd).format('0,0.00'));
-        me.btc.setValue(numeral(data.estimated_value.btc).format('0,0.00000000'));
-        me.xcp.setValue(numeral(data.estimated_value.xcp).format('0,0.00000000'));
+        var usd = (data.estimated_value) ? data.estimated_value.usd : 0,
+            btc = (data.estimated_value) ? data.estimated_value.btc : 0,
+            xcp = (data.estimated_value) ? data.estimated_value.xcp : 0;
+        me.usd.setValue(numeral(usd).format('0,0.00'));
+        me.btc.setValue(numeral(btc).format('0,0.00000000'));
+        me.xcp.setValue(numeral(xcp).format('0,0.00000000'));
         me.website.setValue((data.website) ? data.website : '');
         me.issuer.setValue((data.issuer) ? data.issuer : 'NA');
         me.owner.setValue((data.owner) ? data.owner : 'NA');
