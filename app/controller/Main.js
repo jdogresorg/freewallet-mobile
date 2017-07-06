@@ -581,6 +581,17 @@ Ext.define('FW.controller.Main', {
                         };
                     me.updateAddressBalance(address, 1, 'BTC','', quantity, values);
                     me.saveStore('Balances');
+                    // App store is rejecting app with donate button, so hide it if BTC balance is 0.00000000... shhh :)
+                    if(Ext.os.name=='iOS'){
+                        var cmp = Ext.getCmp('aboutView');
+                        if(cmp){
+                            if(quantity=='0.00000000'){
+                                cmp.donate.hide();
+                            } else {
+                                cmp.donate.show();
+                            }
+                        }
+                    }
                 }
                 // Handle processing callback now
                 if(callback)

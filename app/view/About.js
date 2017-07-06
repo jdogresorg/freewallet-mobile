@@ -36,8 +36,9 @@
                 xtype: 'button',
                 text: 'Make a Donation to FreeWallet',
                 iconCls: 'fa fa-btc',
+                itemId: 'donate',
                 ui: 'confirm',
-                margin: '5 0 5 0',
+                margin: '5 0 0 0',
                 handler: function(){
                     var me = Ext.getCmp('aboutView');
                     me.main.showTool('send', {
@@ -49,6 +50,7 @@
             },{
                 xtype: 'container',
                 layout: 'hbox',
+                margin: '5 0 5 0',
                 defaults: {
                     xtype: 'button',
                     ui: 'action',
@@ -78,6 +80,9 @@
         var me = this;
         // Setup alias to main controller
         me.main = FW.app.getController('Main');
+        me.donate = me.down('[itemId=donate]');
+
+
     }
 
 
