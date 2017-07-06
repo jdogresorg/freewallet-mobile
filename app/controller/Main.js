@@ -26,6 +26,7 @@ Ext.define('FW.controller.Main', {
         // Initalize some runtime values 
         FW.PASSCODE       = 0000;                           // Default passcode used to encrypt wallet
         FW.WALLET_HEX     = null;                           // HD wallet Hex key
+        FW.WALLET_KEYS    = {};                             // Object containing of address/private keys
         FW.WALLET_NETWORK = sm.getItem('network') || 1;     // (1=Mainnet, 2=Testnet)
         FW.WALLET_PREFIX  = sm.getItem('prefix')  || null;  // 4-char wallet hex prefix (used to quickly find addresses associated with this wallet in datastore)
         FW.WALLET_ADDRESS = sm.getItem('address') || null;  // Current wallet address info
@@ -286,29 +287,86 @@ Ext.define('FW.controller.Main', {
     },
 
 
-    // Handle encrypting wallet hex using passcode and saving
+    // Handle encrypting wallet information using passcode and saving
     encryptWallet: function(){
         var me  = this,
-            sm  = localStorage,
-            enc = CryptoJS.AES.encrypt(FW.WALLET_HEX, String(FW.PASSCODE)).toString();
-        // Save the encrypted wallet
+            sm  = localStorage;
+        // Encrypt the wallet seed
+        var enc = CryptoJS.AES.encrypt(FW.WALLET_HEX, String(FW.PASSCODE)).toString();
         sm.setItem('wallet', enc);
+        // Encrypt any imported private keys
+        var enc = CryptoJS.AES.encrypt(Ext.encode(FW.WALLET_KEYS), String(FW.PASSCODE)).toString();
+        sm.setItem('privkey', enc);
     },
 
 
 
-    // Handle decrypting stored wallet address using passcode
+    // Handle decrypting stored wallet seed using passcode
     decryptWallet: function(){
         var me = this,
             sm = localStorage,
-            w  = sm.getItem('wallet');
+            w  = sm.getItem('wallet'),
+            p  = sm.getItem('privkey');
+        // Decrypt wallet
         if(w){
             var dec = CryptoJS.AES.decrypt(w, String(FW.PASSCODE)).toString(CryptoJS.enc.Utf8);
             FW.WALLET_HEX = dec;
         }
+        // Decrypt any saved/imported private keys
+        if(p){
+            var dec = CryptoJS.AES.decrypt(p, String(FW.PASSCODE)).toString(CryptoJS.enc.Utf8);
+            FW.WALLET_KEYS = Ext.decode(dec);
+        }
     },
 
-    
+
+    // Handle adding private key to wallet
+    addWalletPrivkey: function(key, alert){
+        // Verify that the private key is added
+        var me      = this,
+            sm      = localStorage,
+            address = false,
+            bc      = bitcore,
+            store   = Ext.getStore('Addresses'),
+            n       = (FW.WALLET_NETWORK==2) ? 'testnet' : 'mainnet',
+            force   = (force) ? true : false,
+            net     = bc.Networks[n];
+        try {
+            privkey = new bc.PrivateKey.fromWIF(key);
+            pubkey  = privkey.toPublicKey();
+            address = pubkey.toAddress(net).toString();
+        } catch (e){
+            console.log('error : ',e);
+        }
+        // Add wallet to address
+        if(address){
+            var rec = store.add({
+                id: FW.WALLET_PREFIX + '-' + FW.WALLET_NETWORK + '-' + String(address).substring(0,4),
+                index: 9999,
+                prefix: FW.WALLET_PREFIX,
+                network: FW.WALLET_NETWORK,
+                address: address,
+                label: 'Imported Address'
+            });
+            // // Mark record as dirty so we save to disk on next sync
+            rec[0].setDirty();
+            me.saveStore('Addresses');
+        }
+        // Save data in localStorage
+        if(FW.WALLET_KEYS){
+            console.log('FW.WALLET_KEYS=',FW.WALLET_KEYS);
+            FW.WALLET_KEYS[address] = key;
+            me.encryptWallet();
+        }
+        // Notify user that address was added
+        if(alert && address){
+            Ext.defer(function(){
+                Ext.Msg.alert('New Address', address);                
+            },10);
+        }
+    },
+
+
     // Handle adding wallet addresses
     // @count   = number of addresses to generate
     // @network = 1=livenet / 2=testnet
@@ -661,7 +719,52 @@ Ext.define('FW.controller.Main', {
         });
     },
 
-    // Handle clearing sencha app-cache to force reload of files
+
+    // Handle prompting user to enter a private key
+    promptAddressPrivkey: function(callback){
+        var me  = this,
+            bc  = bitcore,
+            net = (FW.WALLET_NETWORK==2) ? 'testnet' : 'mainnet';
+        Ext.Msg.show({
+            message:'Please enter your<br/>unencrypted private key',
+            multiLine: true,
+            buttons: Ext.MessageBox.OKCANCEL,
+            prompt: {
+                cls: 'fw-panel',
+                xtype: 'textareafield',
+                placeholder: 'Unencrypted private key'
+            },
+            fn: function(btn, val){
+                // Handle validating that the entered value is a valid passphrase
+                if(btn=='ok'){
+                    var address = false;
+                    try {
+                        privkey = new bc.PrivateKey.fromWIF(val);
+                        pubkey  = privkey.toPublicKey();
+                        address = pubkey.toAddress(net).toString();
+                    } catch (e){
+                        console.log('error : ',e);
+                    }
+                    // Handle creating wallet using given passphrase
+                    if(address){
+                        if(typeof callback === 'function')
+                            callback(address, val);
+                    } else {
+                        // Defer message a bit to prevent knkown issue in sencha touch library (https://www.sencha.com/forum/showthread.php?279721)
+                        Ext.defer(function(){
+                            Ext.Msg.alert(null, 'Invalid Private key', function(){ 
+                                Ext.defer(function(){
+                                    me.promptAddressPrivkey(callback) 
+                                },10);
+                            });
+                        },10);
+                    }
+                }
+            }
+        });
+    },
+
+        // Handle clearing sencha app-cache to force reload of files
     // fixes issue with app not updating localStorage properly at times
     clearAppCache: function(reload){
         var ls   = localStorage,
@@ -922,22 +1025,27 @@ Ext.define('FW.controller.Main', {
             store = Ext.getStore('Addresses'),
             priv  = false,
             index = false;
-        // Try to lookup the address index in store
-        Ext.each(store.data.all, function(rec){
-            if(rec.data.address==address)
-                index = rec.data.index;
-        });
-        // If we have an index, use it
-        if(index!==false){
-            var derived = key.derive("m/0'/0/" + index);
-            priv = derived.privateKey.toWIF();
-        } else {
-            // Loop through first 50 addresses trying to find
-            for(var i=0; i<50; i++){
-                var derived = key.derive("m/0'/0/" + index),
-                    addr    = bc.Address(derived.publicKey, net).toString();
-                if(address==addr)
-                    priv = derived.privateKey.toWIF();
+        // Check any imported/saved private keys
+        var priv = FW.WALLET_KEYS[address];
+        // Loop through HD addresses trying to find private key
+        if(!priv){
+            // Try to lookup the address index in store
+            Ext.each(store.data.all, function(rec){
+                if(rec.data.address==address)
+                    index = rec.data.index;
+            });
+            // If we have an index, use it
+            if(index!==false){
+                var derived = key.derive("m/0'/0/" + index);
+                priv = derived.privateKey.toWIF();
+            } else {
+                // Loop through first 50 addresses trying to find
+                for(var i=0; i<50; i++){
+                    var derived = key.derive("m/0'/0/" + index),
+                        addr    = bc.Address(derived.publicKey, net).toString();
+                    if(address==addr)
+                        priv = derived.privateKey.toWIF();
+                }
             }
         }
         return priv;

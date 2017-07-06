@@ -10,7 +10,7 @@ Ext.define('FW.model.Addresses', {
             {name: 'index',   type: 'int'},    // Wallet Address index
             {name: 'network', type: 'int'},    // Network (1=Mainnet, 2=Testnet)
             {name: 'address', type: 'string'}, // Address
-            {name: 'label',   type: 'label'}  // Address Label
+            {name: 'label',   type: 'label'}   // Address Label
         ],
         idProperty: 'id',
         proxy: {

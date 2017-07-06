@@ -66,17 +66,8 @@ Ext.define('FW.view.AddressList', {
             },
             plus: true,
             onPlus: function(){
-                // Confirm with user that they want to generate new wallet
-                Ext.Msg.confirm('Add Address', 'Are you sure?', function(btn){
-                    if(btn=='yes'){
-                        // Defer message a bit to prevent knkown issue in sencha touch library (https://www.sencha.com/forum/showthread.php?279721)
-                        Ext.defer(function(){
-                            var main = FW.app.getController('Main'),
-                                addr = main.addWalletAddress(1,null,true,true);
-                        },10);
-
-                    }
-                });
+                var me = Ext.getCmp('addressList');
+                me.onAddAddress();
             }
         },{
             // Define list search toolbar
@@ -162,6 +153,51 @@ Ext.define('FW.view.AddressList', {
         store.clearFilter();
         store.filter(filter);
         me.refresh();        
+    },
+
+
+    // Handle prompting user what action they would like to take, then perform that action
+    onAddAddress: function(){
+        var me = this;
+        Ext.Msg2.show({
+            buttons:[{
+                itemId: 'add',
+                iconCls: 'fa fa-plus',
+                text: 'Add New Address'
+            },{
+                itemId: 'import',
+                iconCls: 'fa fa-upload',
+                text: 'Import Private Key'
+            },{
+                itemId: 'cancel',
+                iconCls: 'fa fa-cancel',
+                ui: 'decline',
+                text: 'Cancel'
+            }],
+            fn: function(btn){
+                // Handle adding 1 new address to the wallet
+                if(btn=='add'){
+                    // Confirm with user that they want to generate new address
+                    Ext.Msg.confirm('Add Address', 'Are you sure?', function(btn){
+                        if(btn=='yes'){
+                            // Defer message a bit to prevent knkown issue in sencha touch library (https://www.sencha.com/forum/showthread.php?279721)
+                            Ext.defer(function(){
+                                addr = me.main.addWalletAddress(1,null,true,true);
+                            },10);
+                        }
+                    });                    
+                }
+                if(btn=='import'){
+                    var cb = function(address, privkey){
+                        if(address && privkey){
+                            console.log('address,privkey=',address,privkey);
+                            me.main.addWalletPrivkey(privkey, true);
+                        }
+                    }
+                    me.main.promptAddressPrivkey(cb);
+                }
+            }
+        });
     }
 
 });
