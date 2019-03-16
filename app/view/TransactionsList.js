@@ -69,6 +69,8 @@ Ext.define('FW.view.TransactionsList', {
                         str = 'Counterparty Issuance';
                     } else if(type=='order'){
                         str = 'Order - Buy ';
+                    } else if(type=='cancel'){
+                        str = 'Order - Cancel ';
                     }
                     if(type=='send'||type=='bet'||type=='burn'||type=='order'){
                         if(/\./.test(amt) || values.asset=='BTC')

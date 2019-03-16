@@ -17,6 +17,9 @@ Ext.define('FW.controller.Main', {
             vp   = Ext.Viewport,
             wall = sm.getItem('wallet'),
             pass = sm.getItem('passcode');
+        // Set the app Version so that we know exactly what version a user is running
+        // We pass this value on login and on order uploads so server can tweak data based on version if needed
+        FW.APP_VERSION="0.1.9"
         // Setup alias to counterparty controller
         me.counterparty   = FW.app.getController('Counterparty');
         // Setup flag to indicate if we are running as a native app.
@@ -32,9 +35,7 @@ Ext.define('FW.controller.Main', {
         FW.WALLET_ADDRESS = sm.getItem('address') || null;  // Current wallet address info
         FW.TOUCHID        = sm.getItem('touchid') || false; // TouchID Authentication enabled (iOS 8+)
         FW.NETWORK_INFO   = {};                             // latest network information (price, fees, unconfirmed tx, etc)
-        FW.API_KEYS       = {
-            BLOCKTRAIL: 'efb0aae5420f167113cc81a9edf7b276d40c2565'
-        }
+        FW.API_KEYS       = {};                             // Placeholder for any API keys
         // Define default server/host settings
         FW.SERVER_INFO    = {
             mainnet: {
@@ -52,7 +53,7 @@ Ext.define('FW.controller.Main', {
                 cpSSL: true                             // Counterparty SSL Enabled (true=https, false=http)
             }                           
         };
-        // Define default miners fees (pull dynamic fee data from blocktrail.com API)
+        // Define default miners fees
         var std = 0.0001
         FW.MINER_FEES = {
             standard: std,
@@ -206,6 +207,7 @@ Ext.define('FW.controller.Main', {
     showScanQRCodeView:   function(cfg){ this.showView(null,'FW.view.Scan',cfg); },
     showPasscodeView:     function(cfg){ this.showView('passcodeView','FW.view.Passcode', cfg); },
     showPassphraseView:   function(cfg){ this.showView('passphraseView','FW.view.Passphrase', cfg); },
+    showPrivateKeyView:   function(cfg){ this.showView('privateKeyView','FW.view.PrivateKey', cfg); },
     showCallbackView:     function(cfg){ this.showView('callbackView','FW.view.Callback', cfg); },
 
     // Handle showing a specifc tool
@@ -284,6 +286,13 @@ Ext.define('FW.controller.Main', {
             m  = Mnemonic.fromHex(FW.WALLET_HEX),
             p  = m.toWords().toString().replace(/,/gi, " ");
         me.showPassphraseView({ phrase: p });
+    },
+
+    // Handle displaying the current wallet passphrase
+    showPrivateKey: function(){
+        var me = this;
+        var privkey = me.getPrivateKey(FW.WALLET_NETWORK, FW.WALLET_ADDRESS.address);
+        me.showPrivateKeyView({ privkey: privkey });
     },
 
 
@@ -556,76 +565,268 @@ Ext.define('FW.controller.Main', {
         return value;
     },
 
-
-    // Handle getting address balance information
-    getAddressBalances: function(address, callback){
-        var me     = this,
-            addr   = (address) ? address : FW.WALLET_ADDRESS.address,
-            prefix = addr.substr(0,5),
-            store  = Ext.getStore('Balances'),
-            net    = (FW.WALLET_NETWORK==2) ? 'tbtc' : 'btc',
-            hostA  = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
-            hostB  = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
-        // Get Address balance from blocktrail
-        me.ajaxRequest({
-            url: 'https://api.blocktrail.com/v1/' + net + '/address/' + address + '?api_key=' + FW.API_KEYS.BLOCKTRAIL,
-            success: function(o){
-                if(o.address){
-                    var quantity  = (o.balance) ? numeral(o.balance * 0.00000001).format('0.00000000') : '0.00000000',
-                        price_usd = me.getCurrencyPrice('bitcoin','usd'),
-                        price_btc = me.getCurrencyPrice('counterparty','btc'),
-                        values    = { 
-                            usd: numeral(parseFloat(price_usd * quantity)).format('0.00000000'),
-                            btc: '1.00000000',
-                            xcp: (price_btc) ? numeral(1 / price_btc).format('0.00000000') : '0.00000000'
-                        };
-                    me.updateAddressBalance(address, 1, 'BTC','', quantity, values);
-                    me.saveStore('Balances');
-                    // App store is rejecting app with donate button, so hide it if BTC balance is 0.00000000... shhh :)
-                    if(Ext.os.name=='iOS'){
-                        var cmp = Ext.getCmp('aboutView');
-                        if(cmp){
-                            if(quantity=='0.00000000'){
-                                cmp.donate.hide();
+    // Handle updating BTC balance from external source with multiple failovers
+    updateBTCBalance: function(address, callback){
+        var me = this;
+        // Main API - Blockcypher
+        me.getBTCBalance(address, 'blockcypher', function(bal){
+            if(typeof bal === 'number'){
+                callback(bal)
+            } else {
+                // Failover #1 - Blockstream
+                me.getBTCBalance(address, 'blockstream', function(bal){
+                    if(typeof bal === 'number'){
+                        callback(bal)
+                    } else {
+                        // Failover #2 - Chain.so
+                        me.getBTCBalance(address, 'chain.so', function(bal){
+                            if(typeof bal === 'number'){
+                                callback(bal)
                             } else {
-                                cmp.donate.show();
+                                // Failover #3 - Indexd
+                                me.getBTCBalance(address, 'indexd', function(bal){
+                                    if(typeof bal === 'number'){
+                                        callback(bal)
+                                    } else {
+                                        callback(0);
+                                    }
+                                });
                             }
-                        }
-                    }
-                }
-                // Handle processing callback now
-                if(callback)
-                    callback();
-            },
-            failure: function(o){
-                // If the request to blocktrail API failed, fallback to slower blockr.io API
-                me.ajaxRequest({
-                    url: 'https://' + hostA + '/api/v1/address/info/' + address,
-                    success: function(o){
-                        if(o.data){
-                            var quantity  = (o.data.balance) ? numeral(o.data.balance).format('0.00000000') : '0.00000000',
-                                price_usd = me.getCurrencyPrice('bitcoin','usd'),
-                                price_btc = me.getCurrencyPrice('counterparty','btc'),
-                                values    = { 
-                                    usd: numeral(price_usd * quantity).format('0.00000000'),
-                                    btc: '1.00000000',
-                                    xcp: (price_btc) ? numeral(1 / price_btc).format('0.00000000') : '0.00000000'
-                                };
-                            me.updateAddressBalance(address, 1, 'BTC','', quantity, values);
-                            me.saveStore('Balances');
-                        }
-                    },
-                    callback: function(){
-                        // Handle processing callback now
-                        if(callback)
-                            callback();
+                        });
                     }
                 });
             }
         });
+    },
+
+    // Handle getting BTC balance (in satoshis) from various sources
+    getBTCBalance: function(address, source, callback){
+        var me   = this,
+            addr = (address) ? address : FW.WALLET_ADDRESS,
+            src  = source,
+            bal  = false,
+            url  = false; // BTC Balance or false for failure
+        // BlockCypher
+        if(source=='blockcypher'){
+            var net = (FW.WALLET_NETWORK==2) ? 'test3' : 'main',
+                url = 'https://api.blockcypher.com/v1/btc/' + net + '/addrs/' + addr + '/balance';
+        // Blockstream
+        } else if(source=='blockstream'){
+            var net = (FW.WALLET_NETWORK==2) ? '/testnet' : '',
+                url = 'https://blockstream.info' + net + '/api/address/' + addr;
+        // Chain.so
+        } else if(source=='chain.so'){
+            var net = (FW.WALLET_NETWORK==2) ? 'BTCTEST' : 'BTC',
+                url = 'https://chain.so/api/v2/get_address_balance/' + net + '/' + addr;
+        // CoinDaddy indexd
+        } else if(source=='indexd'){
+            var net = (FW.WALLET_NETWORK==2) ? 18432 : 8432,
+                url  = 'http://public.coindaddy.io:' + net + '/a/' + addr + '/balance';
+        } else {
+            callback(bal);
+        }
+        if(url){
+            me.ajaxRequest({
+                url: url,
+                success: function( o ){
+                    if(src=='blockcypher' && typeof o.balance === 'number')
+                        bal = o.balance + o.unconfirmed_balance;
+                    if(src=='blockstream' && typeof o.chain_stats.funded_txo_sum === 'number')
+                        bal = o.chain_stats.funded_txo_sum - o.chain_stats.spent_txo_sum;
+                    if(src=='chain.so' && o.status=='success')
+                        bal = (parseFloat(o.data.confirmed_balance) + parseFloat(o.data.unconfirmed_balance)) * 100000000;
+                   if(src=='indexd' && typeof balance === 'number')
+                        bal = balance;
+                    // Handle processing callback
+                    if(callback)
+                        callback(bal);
+                },
+                failure: function(){
+                    if(callback)
+                        callback(bal);
+                }
+            });            
+        }
+    },
+
+
+    // Handle updating BTC history from external source with multiple failovers
+    updateBTCHistory: function(address, callback){
+        var me = this;
+        // Main API - Blockcypher
+        me.getBTCHistory(address, 'blockcypher', function(txs){
+            if(txs instanceof Array){
+                callback(txs)
+            } else {
+                // Failover #1 - Blockstream
+                me.getBTCHistory(address, 'blockstream', function(txs){
+                    if(txs instanceof Array){
+                        callback(txs)
+                    } else {
+                        // Failover #2 - Chain.so
+                        me.getBTCHistory(address, 'chain.so', function(txs){
+                            if(txs instanceof Array){
+                                callback(txs)
+                            } else {
+                                callback([]);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    },
+
+
+    // Handle getting BTC transaction history from various sources
+    getBTCHistory: function(address, source, callback){
+        // console.log('getBTCHistory address,source=',address,source);
+        var me   = this,
+            addr = (address) ? address : FW.WALLET_ADDRESS,
+            src  = source,
+            data = false,
+            url  = false; // BTC Balance or false for failure
+        // BlockCypher
+        if(source=='blockcypher'){
+            var net = (FW.WALLET_NETWORK==2) ? 'test3' : 'main',
+                url = 'https://api.blockcypher.com/v1/btc/' + net + '/addrs/' + addr + '/full?limit=50';
+        // Blockstream
+        } else if(source=='blockstream'){
+            var net = (FW.WALLET_NETWORK==2) ? '/testnet' : '',
+                url = 'https://blockstream.info' + net + '/api/address/' + addr + '/txs';
+        // Chain.so
+        } else if(source=='chain.so'){
+            var net = (FW.WALLET_NETWORK==2) ? 'BTCTEST' : 'BTC',
+                url = 'https://chain.so/api/v2/get_tx_received/' + net + '/' + addr;
+        // CoinDaddy indexd
+        } else {
+            callback(data);
+        }
+        if(url){
+            me.ajaxRequest({
+                url: url,
+                success: function( o ){
+                    // Blockcypher
+                    if(src=='blockcypher' && o.txs){
+                        data = [];
+                        o.txs.forEach(function(tx){
+                            var quantity = '0.00000000';
+                            // If first input is our address, assume this is a send
+                            if(tx.inputs[0].addresses && tx.inputs[0].addresses[0]==addr){
+                                quantity = '-' + numeral(tx.total * 0.00000001).format('0.00000000');
+                            } else {
+                                // If our address is included in an output, assume it is a receive
+                                tx.outputs.forEach(function(out){
+                                    var found = false;
+                                    if(out.addresses){
+                                        out.addresses.forEach(function(addr2){
+                                            if(addr2==addr)
+                                                quantity = numeral(out.value * 0.00000001).format('0.00000000');
+                                        })
+                                    }
+                                });
+                            }
+                            data.push({
+                                hash: tx.hash,
+                                timestamp: moment(tx.confirmed,["YYYY-MM-DDTH:m:s.SSSS[Z]"]).unix(),
+                                quantity: quantity
+                            });
+                        });
+                    }
+                    // Blockstream
+                    if(src=='blockstream' && o instanceof Array){
+                        data = [];
+                        o.forEach(function(tx){
+                            var quantity = '0.00000000';
+                            // If first input is our address, assume this is a send
+                            if(tx.vin[0].prevout.scriptpubkey_address==addr){
+                                quantity = '-' + numeral(tx.vin[0].prevout.value * 0.00000001).format('0.00000000');
+                            } else {
+                                // If our address is included in an output, assume it is a receive
+                                tx.vout.forEach(function(out){
+                                    if(out.scriptpubkey_address==addr)
+                                        quantity = numeral(out.value * 0.00000001).format('0.00000000');
+                                });
+                            }
+                            data.push({
+                                hash: tx.txid,
+                                timestamp: tx.status.block_time,
+                                quantity: quantity
+                            });
+                        });
+                    }
+                    // Chain.so - uses FIFO and requires multiple calls, so not really helpful, but useful as a last resort
+                    if(src=='chain.so' && o.status=='success'){
+                        data = [];
+                        o.data.txs.forEach(function(tx){
+                            data.push({
+                                hash: tx.txid,
+                                timestamp: tx.time,
+                                quantity: tx.value
+                            });                    
+                        });
+                        // Make 2nd call to get outgoing transactions
+                        me.ajaxRequest({
+                            url: 'https://chain.so/api/v2/get_tx_spent/' + net + '/' + addr,
+                            success: function( o ){
+                                if(o.status=='success'){
+                                    o.data.txs.forEach(function(tx){
+                                        data.push({
+                                            hash: tx.txid,
+                                            timestamp: tx.time,
+                                            quantity: '-' + tx.value
+                                        });                    
+                                    });
+                                }
+                                if(callback)
+                                    callback(data);
+                            }
+                        });
+                    }
+                    // Handle processing callback
+                    if(callback)
+                        callback(data);
+                },
+                failure: function(){
+                    if(callback)
+                        callback(data);
+                }
+            });            
+        }
+    },
+
+
+    // Handle getting address balance information
+    getAddressBalances: function(address, callback){
+        var me  = this;
+        // Update BTC Balance
+        me.updateBTCBalance(address, function(sat){
+           var quantity   = (sat) ? numeral(sat * 0.00000001).format('0.00000000') : '0.00000000',
+                price_usd = me.getCurrencyPrice('bitcoin','usd'),
+                price_btc = me.getCurrencyPrice('counterparty','btc'),
+                values    = { 
+                    usd: numeral(parseFloat(price_usd * quantity)).format('0.00000000'),
+                    btc: '1.00000000',
+                    xcp: (price_btc) ? numeral(1 / price_btc).format('0.00000000') : '0.00000000'
+                };
+            me.updateAddressBalance(address, 1, 'BTC','', quantity, values);
+            me.saveStore('Balances');
+            // App store is rejecting app with donate button, so hide it if BTC balance is 0.00000000... shhh :)
+            if(Ext.os.name=='iOS'){
+                var cmp = Ext.getCmp('aboutView');
+                if(cmp){
+                    if(quantity=='0.00000000'){
+                        cmp.donate.hide();
+                    } else {
+                        cmp.donate.show();
+                    }
+                }
+            }
+        });
         // Get Asset balances
+        var host = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
         me.ajaxRequest({
-            url: 'https://' + hostB + '/api/balances/' + address,
+            url: 'https://' + host + '/api/balances/' + address,
             success: function(o){
                 if(o.data){
                     Ext.each(o.data, function(item){
@@ -639,8 +840,9 @@ Ext.define('FW.controller.Main', {
                 }
                 me.saveStore('Balances');
             }
-        }, true);            
+        }, true);         
     },
+
 
     // Handle saving a datastore to disk
     saveStore: function(id){
@@ -775,7 +977,7 @@ Ext.define('FW.controller.Main', {
         });
     },
 
-        // Handle clearing sencha app-cache to force reload of files
+    // Handle clearing sencha app-cache to force reload of files
     // fixes issue with app not updating localStorage properly at times
     clearAppCache: function(reload){
         var ls   = localStorage,
@@ -836,88 +1038,31 @@ Ext.define('FW.controller.Main', {
         return false;
     },
 
-
     // Handle getting address history information
-    getAddressHistory: function(address, callback){
+    getAddressHistory: function(address){
         var me = this;
-        // Define callback function to call after getting BTC transaction history
-        // var cb = function(){ me.getCounterpartyTransactionHistory(address, callback); }
-        // Handle getting Bitcoin transaction data
-        me.getTransactionHistory(address, callback);
-    },
-
-    // Handle getting Bitcoin transaction history
-    getTransactionHistory: function(address, callback){
-        var me    = this,
-            net   = (FW.WALLET_NETWORK==2) ? 'tbtc' : 'btc',
-            hostA = (FW.WALLET_NETWORK==2) ? 'tbtc.blockr.io' : 'btc.blockr.io',
-            hostB = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io',
-            types = ['bets','broadcasts','burns','dividends','issuances','orders','sends','mempool'];
-        // Get BTC transaction history from blocktrail
-        me.ajaxRequest({
-            url: 'https://api.blocktrail.com/v1/' + net + '/address/' + address + '/transactions?limit=100&sort_dir=desc&api_key=' + FW.API_KEYS.BLOCKTRAIL,
-            success: function(o){
-                Ext.each(o.data, function(item,idx){
-                    var time  = (item.block_height) ? moment(item.time,["YYYY-MM-DDTH:m:s"]).unix() : null,
-                        value = numeral((item.estimated_value) * 0.00000001).format('0.00000000')
-                    if(item.inputs[0].address==address)
-                        value = '-' + value;
-                    me.updateTransactionHistory(address, item.hash, 'send', 'BTC', null, value , time);
-                });
-                me.saveStore('Transactions');
-                // Handle processing callback now
-                if(callback)
-                    callback();
-            },
-            failure: function(o){
-                // If the request to blocktrail API failed, fallback to slower blockr.io API
-                me.ajaxRequest({
-                    url: 'https://' + hostA + '/api/v1/address/txs/' + address,
-                    success: function(o){
-                        if(o.data && o.data.txs){
-                            Ext.each(o.data.txs, function(item,idx){
-                                // Only pay attention to the last 100 transactions
-                                if(idx<99){
-                                    var time = moment(item.time_utc,["YYYY-MM-DDTH:m:s"]).unix();
-                                    me.updateTransactionHistory(address, item.tx, 'send', 'BTC', null, item.amount, time);
-                                }
-                            });
-                            me.saveStore('Transactions');
-                        }
-                        // Handle processing callback now
-                        if(callback)
-                            callback();
-                    },
-                    failure: function(o){
-                        // Handle processing callback now
-                        if(callback)
-                            callback();
-
-                    }
-                });
-
-            }
-        });        
-        // Loop through transaction types and get latest transactions
-        Ext.each(types, function(type){
+        // Get BTC transaction history
+        me.updateBTCHistory(address,function(o){
+            Ext.each(o, function(item,idx){
+                me.updateTransactionHistory(address, item.hash, 'send', 'BTC', null, item.quantity , item.timestamp);
+            });
+            me.saveStore('Transactions');
+        });
+        // Get Counterparty transaction history (includes pending mempool transactions)
+        var types = ['history','mempool'],
+            host  = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
+        types.forEach(function(type){
             me.ajaxRequest({
-                url: 'https://' + hostB + '/api/' + type + '/' + address,
+                url: 'https://' + host + '/api/' + type + '/' + address,
                 success: function(o){
                     if(o.data){
-                        // Strip trailing s off type to make it singular
-                        if(String(type).substring(type.length-1)=='s')
-                            type = String(type).substring(0,type.length-1);
                         // Loop through data and add to transaction list
                         Ext.each(o.data, function(item){
                             var asset    = item.asset,
                                 quantity = item.quantity,
                                 tstamp   = item.timestamp,
-                                tx_type  = type;
-                            // Set type from mempool data, and reset timestamp, so things show as pending
-                            if(tx_type=='mempool'){
-                                tx_type = String(item.tx_type).toLowerCase();
-                                tstamp  = null;
-                            }
+                                tx_type  = String(item.tx_type).toLowerCase(),
+                                longname = item.asset_longname;
                             if(tx_type=='bet'){
                                 asset    = 'XCP';
                                 quantity = item.wager_quantity;
@@ -926,18 +1071,19 @@ Ext.define('FW.controller.Main', {
                                 quantity = item.burned;
                             } else if(tx_type=='order'){
                                 asset    = item.get_asset,
+                                longname = item.get_asset_longname,
                                 quantity = item.get_quantity;
                             } else if(tx_type=='send'){
                                 if(item.source==address)
                                     quantity = '-' + quantity;
                             }
-                            me.updateTransactionHistory(address, item.tx_hash, tx_type, asset, item.asset_longname, quantity, tstamp);
+                            me.updateTransactionHistory(address, item.tx_hash, tx_type, asset, longname, quantity, tstamp);
                         });
                         me.saveStore('Transactions');
                     }
                 }
             });
-        });        
+        });
     },
 
 
@@ -1052,7 +1198,7 @@ Ext.define('FW.controller.Main', {
             } else {
                 // Loop through first 50 addresses trying to find
                 for(var i=0; i<50; i++){
-                    var derived = key.derive("m/0'/0/" + index),
+                    var derived = key.derive("m/0'/0/" + i),
                         addr    = bc.Address(derived.publicKey, net).toString();
                     if(address==addr)
                         priv = derived.privateKey.toWIF();
@@ -1060,6 +1206,7 @@ Ext.define('FW.controller.Main', {
             }
         }
         return priv;
+
     }, 
 
 
@@ -1224,23 +1371,29 @@ Ext.define('FW.controller.Main', {
         }
         // Handle native scanning via ZBar barcode scanner (https://github.com/tjwoon/csZBar)
         if(me.isNative){
-            var onSuccess = function(data){
+            // Define success/fail functions for scan
+            var onSuccess = function(result){
+                console.log('onSuccess result=',result);
+                var data = (result && result.text) ? result.text : '';
                 cb(me.getScannedData(String(data)));
             };
             var onError = function(error){
-                vp.setMasked(false);
-                console.log('error=',error);
-                // error('cancelled') If user cancelled the scan (with back button etc)
-                // error('misc error message') Misc failure
+                console.log('onError error=',error);
             };
-            // Initiate a scan
-            cloudSky.zBar.scan({
-                text_title: "Scan QR Code", // Android only
-                text_instructions: "Please point your camera at the QR code.", // Android only
-                camera: "back", // defaults to "back" (front/back)
-                flash: "auto", // defaults to "auto". (on/off/auto)
-                drawSight: false //defaults to true, create a red sight/line in the center of the scanner view.
-            }, onSuccess, onError);
+            // Initiate a scan (barcodeScanner plugin)
+            cordova.plugins.barcodeScanner.scan(onSuccess, onError,{
+                preferFrontCamera : false,      // iOS and Android
+                showFlipCameraButton : true,    // iOS and Android
+                showTorchButton : true,         // iOS and Android
+                torchOn: false,                 // Android, launch with the torch switched on (if available)
+                saveHistory: false,             // Android, save scan history (default false)
+                prompt : "Place a QR code inside the scan area", // Android
+                resultDisplayDuration: 500,     // Android, display scanned text for X ms. 0 suppresses it entirely, default 1500
+                // formats : "QR_CODE,PDF_417",    // default: all but PDF_417 and RSS_EXPANDED
+                // orientation : "landscape",      // Android only (portrait|landscape), default unset so it rotates with the device
+                disableAnimations : true,       // iOS
+                disableSuccessBeep: false       // iOS and Android
+            }); 
         } else {
             // Handle non-native scanning via HTML5 (https://github.com/LazarSoft/jsqrcode)
             me.showScanQRCodeView({ callback: cb });

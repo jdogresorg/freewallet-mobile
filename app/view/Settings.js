@@ -73,6 +73,23 @@ Ext.define('FW.view.Settings', {
                         }
                     }
                 }, {
+                    xtype: 'fw-actionfield',
+                    type: 'passwordfield',
+                    name: 'privkey',
+                    label: 'Private Key',
+                    iconCls: 'fa fa-user-secret',
+                    readOnly: true,
+                    placeHolder: 'Private Key',
+                    value: 'blah blah blah blah blah blah blah blah blah blah blah blah',
+                    handler: function(){
+                        FW.app.getController('Main').showPrivateKey();
+                    },
+                    listeners: {
+                        focus: function(cmp){
+                            cmp.blur();
+                        }
+                    }
+                }, {
                     xtype:'textfield',
                     label: 'Label',
                     name: 'label',

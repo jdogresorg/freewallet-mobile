@@ -103,6 +103,17 @@ Ext.define('FW.view.Issuance', {
                             }
                         }
                     }
+                },{
+                    xtype: 'togglefield',
+                    name: 'Lock Token Supply',
+                    label: 'Lock Token',
+                    listeners: {
+                        change: function(cmp, newVal, oldVal, opts){
+                            var desc = (newVal) ? 'LOCK' : ''
+                            var me  = Ext.getCmp('issuanceView');
+                            me.description.setValue(desc);
+                        }
+                    }
                 }]                
             },{
                 xtype: 'fw-transactionpriority',
@@ -240,14 +251,17 @@ Ext.define('FW.view.Issuance', {
             };
             me.main.cpIssuance(FW.WALLET_NETWORK, FW.WALLET_ADDRESS.address, vals.name, vals.description, vals.divisible, qty_sat, null, fee_sat, cb);
         }        
-        // Make call to counterpartyChain API to check if asset already is registered
-        var host = (FW.WALLET_NETWORK==2) ? 'testnet.counterpartychain.io' : 'counterpartychain.io';
+        // Make call to xchain API to check if asset already is registered
+        var host = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
         me.main.ajaxRequest({
             url: 'https://' + host + '/api/asset/' + vals.name,
             success: function(o){
-                if(o.success){
+                var valid = false;
+                if(o.error=='Asset not found' || o.owner==FW.WALLET_ADDRESS.address)
+                    valid = true;
+                else if(o.owner!=FW.WALLET_ADDRESS.address)
                     Ext.Msg.alert(null,'Token is already registered to a different address.');
-                } else {
+                if(valid){
                     // Confirm action with user
                     Ext.Msg.confirm('Confirm Issuance', 'Send Issuance?', function(btn){
                         if(btn=='yes')

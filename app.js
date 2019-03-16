@@ -74,6 +74,7 @@ Ext.application({
         'Sign',
         'Welcome',
         'Passphrase',
+        'PrivateKey',
         'Scan',
         'QRCode',
         'TransactionPriority',

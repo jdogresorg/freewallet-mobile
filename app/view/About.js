@@ -27,7 +27,7 @@
             },{
                 xtype: 'container',
                 margin: '10 0 5 0',
-                html:'<p align="justify">FreeWallet is a free open-source mobile wallet which supports Bitcoin and tokens. FreeWallet uses public APIs available from blocktrail.com, blockr.io, coindaddy.io, chain.so, and xchain.io.</p>'
+                html:'<p align="justify">FreeWallet is a free open-source mobile wallet which supports Bitcoin and tokens. FreeWallet uses public APIs available from xchain.io, coindaddy.io, blockcypher.com, blockstream.info, and chain.so.</p>'
             },{
                 margin: '10 0 0 0',
                 html:'<p align="justify"><b>Send a donation to support FreeWallet hosting and development.</b></p>' + 
@@ -44,7 +44,7 @@
                     me.main.showTool('send', {
                         reset: true,
                         currency: 'BTC',
-                        address: '17AXerXeWPMg5xiZ4XiC8QWS93aePuEzNr'
+                        address: '1FWDonkMbC6hL64JiysuggHnUAw2CKWszs'
                     });
                 }
             },{

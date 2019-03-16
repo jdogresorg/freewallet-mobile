@@ -48,7 +48,7 @@ Ext.define('FW.view.Sign', {
                 //     label: 'Address',
                 //     name: 'address',
                 },{
-                    readOnly: true,
+                    readOnly: false,
                     xtype: 'textareafield',
                     maxrows: 3,
                     label: 'Signature',
