@@ -798,30 +798,32 @@ Ext.define('FW.controller.Main', {
 
     // Handle getting address balance information
     getAddressBalances: function(address, callback){
-        var me  = this;
+        var me   = this,
+            done = {};
+        var doneCb = function(){
+            if(done.btc && done.xcp && typeof callback === 'function')
+                callback();
+        };
         // Update BTC Balance
         me.updateBTCBalance(address, function(sat){
-           var quantity   = (sat) ? numeral(sat * 0.00000001).format('0.00000000') : '0.00000000',
-                price_usd = me.getCurrencyPrice('bitcoin','usd'),
-                price_btc = me.getCurrencyPrice('counterparty','btc'),
-                values    = { 
+           var quantity  = (sat) ? numeral(sat * 0.00000001).format('0.00000000') : '0.00000000',
+               price_usd = me.getCurrencyPrice('bitcoin','usd'),
+               price_btc = me.getCurrencyPrice('counterparty','btc'),
+               values    = { 
                     usd: numeral(parseFloat(price_usd * quantity)).format('0.00000000'),
                     btc: '1.00000000',
                     xcp: (price_btc) ? numeral(1 / price_btc).format('0.00000000') : '0.00000000'
                 };
             me.updateAddressBalance(address, 1, 'BTC','', quantity, values);
             me.saveStore('Balances');
-            // App store is rejecting app with donate button, so hide it if BTC balance is 0.00000000... shhh :)
+            // Only display donate button on iOS if address has a BTC balance... shhh :)
             if(Ext.os.name=='iOS'){
                 var cmp = Ext.getCmp('aboutView');
-                if(cmp){
-                    if(quantity=='0.00000000'){
-                        cmp.donate.hide();
-                    } else {
-                        cmp.donate.show();
-                    }
-                }
+                if(cmp && quantity!='0.00000000')
+                    cmp.donate.show();
             }
+            done.btc = true;
+            doneCb();
         });
         // Get Asset balances
         var host = (FW.WALLET_NETWORK==2) ? 'testnet.xchain.io' : 'xchain.io';
@@ -839,8 +841,11 @@ Ext.define('FW.controller.Main', {
                         me.updateAddressBalance(address, 1, 'XCP', '', '0.00000000');
                 }
                 me.saveStore('Balances');
+                done.xcp = true;
+                doneCb();
             }
         }, true);         
+
     },
 
 
@@ -1039,14 +1044,23 @@ Ext.define('FW.controller.Main', {
     },
 
     // Handle getting address history information
-    getAddressHistory: function(address){
-        var me = this;
+    getAddressHistory: function(address, callback){
+        var me   = this,
+            done = {};
+        var doneCb = function(){
+            if(done.btc && done.history && done.mempool && typeof callback === 'function')
+                callback();
+        };
+
         // Get BTC transaction history
         me.updateBTCHistory(address,function(o){
             Ext.each(o, function(item,idx){
                 me.updateTransactionHistory(address, item.hash, 'send', 'BTC', null, item.quantity , item.timestamp);
             });
             me.saveStore('Transactions');
+            done.btc = true;
+            if(typeof callback == 'function')
+                callback();
         });
         // Get Counterparty transaction history (includes pending mempool transactions)
         var types = ['history','mempool'],
@@ -1080,6 +1094,9 @@ Ext.define('FW.controller.Main', {
                             me.updateTransactionHistory(address, item.tx_hash, tx_type, asset, longname, quantity, tstamp);
                         });
                         me.saveStore('Transactions');
+                        done[type] = true;
+                        if(typeof callback == 'function')
+                            callback();
                     }
                 }
             });

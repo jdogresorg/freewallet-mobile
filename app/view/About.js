@@ -81,8 +81,9 @@
         // Setup alias to main controller
         me.main = FW.app.getController('Main');
         me.donate = me.down('[itemId=donate]');
-
-
+        // Hide donate button on iOS cuz they only allow in-app purchases (lame)
+        if(Ext.os.name=='iOS')
+            me.donate.hide();
     }
 
 
